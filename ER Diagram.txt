@@ -1,0 +1,70 @@
+    USER ||--o{ WORKOUT : performs
+    USER ||--o{ MEAL : eats
+    
+    WORKOUT ||--o| CARDIO : is_a
+    WORKOUT ||--o| STRENGTH : is_a
+    
+    STRENGTH ||--o{ EXERCISE : includes
+    EXERCISE ||--o{ SET : records
+    
+    MEAL ||--o{ FOOD : consists_of
+
+    USER {
+        string username PK
+        int age
+        string gender
+        float weight
+        float height
+        string experience_level
+        float bmi
+    }
+
+    WORKOUT {
+        int workout_id PK
+        string username FK  %% Link back to USER
+        date date
+        int duration
+        int calories_burned
+    }
+
+    CARDIO {
+        int workout_id PK, FK %% Inherited from WORKOUT
+        string cardio_type
+        float distance
+    }
+
+    STRENGTH {
+        int workout_id PK, FK %% Inherited from WORKOUT
+    }
+
+    EXERCISE {
+        int exercise_id PK
+        int workout_id FK  %% Link back to STRENGTH session
+        string name
+        string muscle_group
+    }
+
+    SET {
+        int set_id PK
+        int exercise_id FK %% Link back to specific EXERCISE
+        int set_num
+        int reps
+        float weight
+        string intensity
+    }
+
+    MEAL {
+        int meal_id PK
+        string username FK  %% Link back to USER
+        date date
+        int meal_num
+        int calories_in
+    }
+
+    FOOD {
+        int food_id PK
+        int meal_id FK      %% Link back to specific MEAL
+        string name
+        string type
+        int calories
+    }}
