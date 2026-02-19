@@ -21,6 +21,29 @@ class OpenFoodFactsClient:
             "Accept": "application/json"
         }
 
+    # Shared timeout for all requests (seconds)
+    _TIMEOUT = 10
+
+    def _get(self, url: str, params: dict = None):
+        """
+        Internal helper for GET requests with consistent timeout and error handling.
+        Raises RuntimeError with a descriptive message on any network or HTTP failure.
+        """
+        try:
+            response = requests.get(
+                url, headers=self.headers, params=params or {}, timeout=self._TIMEOUT
+            )
+            response.raise_for_status()
+            return response.json()
+        except requests.exceptions.Timeout:
+            raise RuntimeError(f"OpenFoodFacts request timed out after {self._TIMEOUT}s: {url}")
+        except requests.exceptions.ConnectionError:
+            raise RuntimeError(f"Could not connect to OpenFoodFacts: {url}")
+        except requests.exceptions.HTTPError as e:
+            raise RuntimeError(f"OpenFoodFacts returned HTTP {e.response.status_code}: {url}")
+        except ValueError:
+            raise RuntimeError(f"OpenFoodFacts returned invalid JSON: {url}")
+
     # -------------------------------------------------------------------------
     # READ OPERATIONS
     # -------------------------------------------------------------------------
@@ -50,7 +73,7 @@ class OpenFoodFactsClient:
                 - ingredients_text: Raw ingredients text
                 - ingredients: Parsed list of ingredient dictionaries
                 - allergens: Allergen information
-                - nutrition_grades: Nutri-Score letter (a–e)
+                - nutrition_grades: Nutri-Score letter (a-e)
                 - nutriscore_data: Detailed Nutri-Score breakdown
                 - nutriments: Dictionary of nutritional values per 100g/serving:
                     - energy-kcal_100g, fat_100g, saturated-fat_100g,
@@ -64,18 +87,15 @@ class OpenFoodFactsClient:
                 - image_front_url: URL to front-of-pack image
                 - image_nutrition_url: URL to nutrition label image
                 - image_ingredients_url: URL to ingredients image
-                - ecoscore_grade: Eco-Score environmental grade (a–e)
-                - nova_group: NOVA food processing group (1–4)
+                - ecoscore_grade: Eco-Score environmental grade (a-e)
+                - nova_group: NOVA food processing group (1-4)
                 - additives_tags: List of detected food additives
         """
         url = f"{self.api_v2}/product/{barcode}"
         params = {}
         if fields:
             params["fields"] = ",".join(fields)
-
-        response = requests.get(url, headers=self.headers, params=params)
-        response.raise_for_status()
-        return response.json()
+        return self._get(url, params)
 
     def search_products(
         self,
@@ -148,9 +168,7 @@ class OpenFoodFactsClient:
         if sort_by:
             params["sort_by"] = sort_by
 
-        response = requests.get(url, headers=self.headers, params=params)
-        response.raise_for_status()
-        return response.json()
+        return self._get(url, params)
 
     def get_products_by_category(
         self,
@@ -176,9 +194,7 @@ class OpenFoodFactsClient:
         url = f"{self.base_url}/category/{category}.json"
         params = {"page": page}
 
-        response = requests.get(url, headers=self.headers, params=params)
-        response.raise_for_status()
-        return response.json()
+        return self._get(url, params)
 
     def get_products_by_label(self, label: str, page: int = 1) -> Dict[str, Any]:
         """
@@ -195,9 +211,7 @@ class OpenFoodFactsClient:
         url = f"{self.base_url}/label/{label}.json"
         params = {"page": page}
 
-        response = requests.get(url, headers=self.headers, params=params)
-        response.raise_for_status()
-        return response.json()
+        return self._get(url, params)
 
     def get_products_by_brand(self, brand: str, page: int = 1) -> Dict[str, Any]:
         """
@@ -214,9 +228,7 @@ class OpenFoodFactsClient:
         url = f"{self.base_url}/brand/{brand}.json"
         params = {"page": page}
 
-        response = requests.get(url, headers=self.headers, params=params)
-        response.raise_for_status()
-        return response.json()
+        return self._get(url, params)
 
     def get_products_by_ingredient(self, ingredient: str, page: int = 1) -> Dict[str, Any]:
         """
@@ -233,9 +245,7 @@ class OpenFoodFactsClient:
         url = f"{self.base_url}/ingredient/{ingredient}.json"
         params = {"page": page}
 
-        response = requests.get(url, headers=self.headers, params=params)
-        response.raise_for_status()
-        return response.json()
+        return self._get(url, params)
 
     def get_products_by_allergen(self, allergen: str, page: int = 1) -> Dict[str, Any]:
         """
@@ -252,9 +262,7 @@ class OpenFoodFactsClient:
         url = f"{self.base_url}/allergen/{allergen}.json"
         params = {"page": page}
 
-        response = requests.get(url, headers=self.headers, params=params)
-        response.raise_for_status()
-        return response.json()
+        return self._get(url, params)
 
     def get_categories_list(self) -> Dict[str, Any]:
         """
@@ -271,9 +279,7 @@ class OpenFoodFactsClient:
         """
         url = f"{self.base_url}/categories.json"
 
-        response = requests.get(url, headers=self.headers)
-        response.raise_for_status()
-        return response.json()
+        return self._get(url)
 
     def get_labels_list(self) -> Dict[str, Any]:
         """
@@ -284,9 +290,7 @@ class OpenFoodFactsClient:
         """
         url = f"{self.base_url}/labels.json"
 
-        response = requests.get(url, headers=self.headers)
-        response.raise_for_status()
-        return response.json()
+        return self._get(url)
 
     def get_additives_list(self) -> Dict[str, Any]:
         """
@@ -297,9 +301,7 @@ class OpenFoodFactsClient:
         """
         url = f"{self.base_url}/additives.json"
 
-        response = requests.get(url, headers=self.headers)
-        response.raise_for_status()
-        return response.json()
+        return self._get(url)
 
     def get_nutriments_for_product(self, barcode: str) -> Dict[str, Any]:
         """

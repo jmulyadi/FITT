@@ -3,13 +3,17 @@ from typing import Dict, Any, List
 
 
 class FitnessBackend:
-    def __init__(self, supabase_client: Client):
+    def __init__(self, supabase_client: Client, user_id: str):
         """
-        Initialize FitnessBackend with a shared, already-authenticated Supabase client.
+        Initialize FitnessBackend with a shared, already-authenticated Supabase client
+        and the pre-resolved user_id so we never need to call auth.get_user() again.
+
         Args:
             supabase_client: An instance of supabase.Client with an active session.
+            user_id: The Supabase Auth UUID for the currently authenticated user.
         """
         self.supabase = supabase_client
+        self._user_id = user_id
 
     # ============================================================================
     # SESSION HELPER
@@ -17,23 +21,19 @@ class FitnessBackend:
 
     def get_username_from_session(self) -> str:
         """
-        Resolves the username of the currently signed-in user from the active session.
-        
+        Resolves the username of the currently signed-in user.
+        Uses the pre-resolved user_id stored at construction time — no extra
+        auth.get_user() round-trip needed.
+
         Returns:
             Username string for the current user
-            
+
         Raises:
-            PermissionError: If no active session
             ValueError: If no profile found for the current user
         """
-        user = self.supabase.auth.get_user()
-
-        if not user or not user.user:
-            raise PermissionError("No active session. Please sign in.")
-
         response = self.supabase.table("USER") \
             .select("username") \
-            .eq("id", user.user.id) \
+            .eq("id", self._user_id) \
             .execute()
 
         if not response.data:
@@ -109,6 +109,83 @@ class FitnessBackend:
             raise ValueError(f"Update failed. User '{username}' not found.")
 
         return response.data[0]
+
+    # ============================================================================
+    # OWNERSHIP VERIFICATION METHODS
+    # ============================================================================
+
+    def verify_workout_ownership(self, username: str, workout_id: int) -> None:
+        """
+        Raises PermissionError if the workout does not belong to the given user.
+        Use before any mutating operation on a workout or its children.
+        """
+        response = self.supabase.table("workout") \
+            .select("username") \
+            .eq("workout_id", workout_id) \
+            .execute()
+
+        if not response.data:
+            raise ValueError(f"Workout {workout_id} not found.")
+
+        if response.data[0]["username"] != username:
+            raise PermissionError(f"Workout {workout_id} does not belong to the current user.")
+
+    def verify_exercise_ownership(self, username: str, exercise_id: int) -> None:
+        """
+        Raises PermissionError if the exercise does not belong to a workout owned by the user.
+        """
+        response = self.supabase.table("exercise") \
+            .select("workout_id") \
+            .eq("exercise_id", exercise_id) \
+            .execute()
+
+        if not response.data:
+            raise ValueError(f"Exercise {exercise_id} not found.")
+
+        self.verify_workout_ownership(username, response.data[0]["workout_id"])
+
+    def verify_set_ownership(self, username: str, set_id: int) -> None:
+        """
+        Raises PermissionError if the set does not belong to the current user.
+        """
+        response = self.supabase.table("SET") \
+            .select("exercise_id") \
+            .eq("set_id", set_id) \
+            .execute()
+
+        if not response.data:
+            raise ValueError(f"Set {set_id} not found.")
+
+        self.verify_exercise_ownership(username, response.data[0]["exercise_id"])
+
+    def verify_meal_ownership(self, username: str, meal_id: int) -> None:
+        """
+        Raises PermissionError if the meal does not belong to the given user.
+        """
+        response = self.supabase.table("meal") \
+            .select("username") \
+            .eq("meal_id", meal_id) \
+            .execute()
+
+        if not response.data:
+            raise ValueError(f"Meal {meal_id} not found.")
+
+        if response.data[0]["username"] != username:
+            raise PermissionError(f"Meal {meal_id} does not belong to the current user.")
+
+    def verify_food_ownership(self, username: str, food_id: int) -> None:
+        """
+        Raises PermissionError if the food item does not belong to the current user.
+        """
+        response = self.supabase.table("food") \
+            .select("meal_id") \
+            .eq("food_id", food_id) \
+            .execute()
+
+        if not response.data:
+            raise ValueError(f"Food {food_id} not found.")
+
+        self.verify_meal_ownership(username, response.data[0]["meal_id"])
 
     # ============================================================================
     # WORKOUT METHODS
@@ -226,7 +303,6 @@ class FitnessBackend:
             .execute()
 
         if not response.data:
-            print(f"No workouts found between '{start_date}' and '{end_date}' for '{username}'.")
             return []
 
         return response.data
@@ -530,7 +606,7 @@ class FitnessBackend:
             .execute()
 
         if not response.data:
-            raise ValueError(f"No exercises found for workout {workout_id}.")
+            return []
 
         return response.data
 
@@ -621,13 +697,12 @@ class FitnessBackend:
         response = self.supabase.table("SET") \
             .select("*") \
             .eq("set_id", set_id) \
-            .single() \
             .execute()
 
         if not response.data:
             raise ValueError(f"No set found with ID {set_id}.")
 
-        return response.data
+        return response.data[0]
 
     def get_sets_by_exercise(self, exercise_id: int) -> List[Dict[str, Any]]:
         """
@@ -646,7 +721,7 @@ class FitnessBackend:
             .execute()
 
         if not response.data:
-            raise ValueError(f"No sets found for exercise {exercise_id}.")
+            return []
 
         return response.data
 
@@ -877,13 +952,12 @@ class FitnessBackend:
         response = self.supabase.table("food") \
             .select("*") \
             .eq("food_id", food_id) \
-            .single() \
             .execute()
 
         if not response.data:
             raise ValueError(f"No food found with ID {food_id}.")
 
-        return response.data
+        return response.data[0]
 
     def get_foods_by_meal(self, meal_id: int) -> List[Dict[str, Any]]:
         """
@@ -901,7 +975,7 @@ class FitnessBackend:
             .execute()
 
         if not response.data:
-            raise ValueError(f"No food items found for meal {meal_id}.")
+            return []
 
         return response.data
 
@@ -911,13 +985,17 @@ class FitnessBackend:
         
         Args:
             food_id: Food to update
-            **kwargs: Fields to update (name, type, calories)
+            **kwargs: Fields to update (name, food_type, calories).
+                      'food_type' is remapped to 'type' to match the DB column name.
             
         Returns:
             Updated food data
         """
         if not kwargs:
             raise ValueError("No fields provided for update.")
+
+        if "food_type" in kwargs:
+            kwargs["type"] = kwargs.pop("food_type")
 
         response = self.supabase.table("food") \
             .update(kwargs) \
@@ -1042,30 +1120,39 @@ class FitnessBackend:
             List of workout sessions with exercise stats, sorted by date
         """
         workouts = self.get_workouts_in_range(username, start_date, end_date)
+        if not workouts:
+            return []
+
+        workout_ids = [w['workout_id'] for w in workouts]
+        workout_dates = {w['workout_id']: w['date'] for w in workouts}
+
+        # Single bulk query for all exercises + sets across the entire date range
+        # instead of one query per workout (N+1)
+        response = self.supabase.table("exercise") \
+            .select('*, "SET"(*)') \
+            .in_("workout_id", workout_ids) \
+            .execute()
+
         progress = []
-
-        for workout in workouts:
-            try:
-                exercises = self.get_exercises_by_workout(workout['workout_id'])
-
-                for exercise in exercises:
-                    if exercise['name'].lower() == exercise_name.lower():
-                        sets = exercise.get('SET', [])
-
-                        if sets:
-                            max_weight = max(s.get('weight', 0) for s in sets)
-                            total_volume = sum(s.get('weight', 0) * s.get('reps', 0) for s in sets)
-
-                            progress.append({
-                                'date': workout['date'],
-                                'workout_id': workout['workout_id'],
-                                'exercise_id': exercise['exercise_id'],
-                                'max_weight': max_weight,
-                                'total_volume': total_volume,
-                                'num_sets': len(sets)
-                            })
-            except ValueError:
+        for exercise in (response.data or []):
+            if exercise['name'].lower() != exercise_name.lower():
                 continue
+
+            sets = exercise.get('SET', [])
+            if not sets:
+                continue
+
+            max_weight = max(s.get('weight', 0) for s in sets)
+            total_volume = sum(s.get('weight', 0) * s.get('reps', 0) for s in sets)
+
+            progress.append({
+                'date': workout_dates[exercise['workout_id']],
+                'workout_id': exercise['workout_id'],
+                'exercise_id': exercise['exercise_id'],
+                'max_weight': max_weight,
+                'total_volume': total_volume,
+                'num_sets': len(sets)
+            })
 
         return sorted(progress, key=lambda x: x['date'])
 
@@ -1097,7 +1184,7 @@ class FitnessBackend:
         total_calories = sum(w.get('calories_burned', 0) for w in workouts)
         total_duration = sum(w.get('duration', 0) for w in workouts)
 
-        # cardio/strength data is already embedded in each workout row — no extra queries needed
+        # cardio/strength data is already embedded in each workout row â€” no extra queries needed
         cardio_count = sum(1 for w in workouts if w.get('cardio'))
         strength_count = sum(1 for w in workouts if w.get('strength'))
 

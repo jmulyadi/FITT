@@ -5,6 +5,8 @@ from dotenv import load_dotenv
 
 
 class ExerciseDBClient:
+    # Shared timeout for all requests (seconds)
+    _TIMEOUT = 10
     def __init__(self):
         """
         Initialize the ExerciseDB API client
@@ -33,8 +35,28 @@ class ExerciseDBClient:
         self.headers = {
             "X-RapidAPI-Key": self.api_key,
             "X-RapidAPI-Host": self.api_host
-        }   
-    
+        }
+
+    def _get(self, url: str, params: dict = None):
+        """
+        Internal helper for GET requests with consistent timeout and error handling.
+        Raises RuntimeError with a descriptive message on any network or HTTP failure.
+        """
+        try:
+            response = requests.get(
+                url, headers=self.headers, params=params or {}, timeout=self._TIMEOUT
+            )
+            response.raise_for_status()
+            return response.json()
+        except requests.exceptions.Timeout:
+            raise RuntimeError(f"ExerciseDB request timed out after {self._TIMEOUT}s: {url}")
+        except requests.exceptions.ConnectionError:
+            raise RuntimeError(f"Could not connect to ExerciseDB: {url}")
+        except requests.exceptions.HTTPError as e:
+            raise RuntimeError(f"ExerciseDB returned HTTP {e.response.status_code}: {url}")
+        except ValueError:
+            raise RuntimeError(f"ExerciseDB returned invalid JSON: {url}")
+
     def get_all_exercises(self, limit: int = 10, offset: int = 0) -> List[Dict[str, Any]]:
         """
         Get a list of all exercises
@@ -56,10 +78,7 @@ class ExerciseDBClient:
         """
         url = f"{self.base_url}/exercises"
         params = {'limit': limit, 'offset': offset}
-        
-        response = requests.get(url, headers=self.headers, params=params)
-        response.raise_for_status()
-        return response.json()
+        return self._get(url, params)
     
     def get_exercise_by_id(self, exercise_id: str) -> Dict[str, Any]:
         """
@@ -80,10 +99,7 @@ class ExerciseDBClient:
             - instructions: Step-by-step instructions list
         """
         url = f"{self.base_url}/exercises/exercise/{exercise_id}"
-        
-        response = requests.get(url, headers=self.headers)
-        response.raise_for_status()
-        return response.json()
+        return self._get(url)
     
     def get_exercises_by_body_part(self, body_part: str, limit: int = 10) -> List[Dict[str, Any]]:
         """
@@ -110,10 +126,7 @@ class ExerciseDBClient:
         """
         url = f"{self.base_url}/exercises/bodyPart/{body_part}"
         params = {'limit': limit}
-        
-        response = requests.get(url, headers=self.headers, params=params)
-        response.raise_for_status()
-        return response.json()
+        return self._get(url, params)
     
     def get_exercises_by_target(self, target_muscle: str, limit: int = 10) -> List[Dict[str, Any]]:
         """
@@ -130,10 +143,7 @@ class ExerciseDBClient:
         """
         url = f"{self.base_url}/exercises/target/{target_muscle}"
         params = {'limit': limit}
-        
-        response = requests.get(url, headers=self.headers, params=params)
-        response.raise_for_status()
-        return response.json()
+        return self._get(url, params)
     
     def get_exercises_by_equipment(self, equipment: str, limit: int = 10) -> List[Dict[str, Any]]:
         """
@@ -150,10 +160,7 @@ class ExerciseDBClient:
         """
         url = f"{self.base_url}/exercises/equipment/{equipment}"
         params = {'limit': limit}
-        
-        response = requests.get(url, headers=self.headers, params=params)
-        response.raise_for_status()
-        return response.json()
+        return self._get(url, params)
     
     def search_by_name(self, name: str, limit: int = 10) -> List[Dict[str, Any]]:
         """
@@ -170,34 +177,22 @@ class ExerciseDBClient:
         """
         url = f"{self.base_url}/exercises/name/{name}"
         params = {'limit': limit}
-        
-        response = requests.get(url, headers=self.headers, params=params)
-        response.raise_for_status()
-        return response.json()
+        return self._get(url, params)
     
     def get_body_part_list(self) -> List[str]:
         """Get list of all available body parts"""
         url = f"{self.base_url}/exercises/bodyPartList"
-        
-        response = requests.get(url, headers=self.headers)
-        response.raise_for_status()
-        return response.json()
+        return self._get(url)
     
     def get_target_list(self) -> List[str]:
         """Get list of all target muscles"""
         url = f"{self.base_url}/exercises/targetList"
-        
-        response = requests.get(url, headers=self.headers)
-        response.raise_for_status()
-        return response.json()
+        return self._get(url)
     
     def get_equipment_list(self) -> List[str]:
         """Get list of all equipment types"""
         url = f"{self.base_url}/exercises/equipmentList"
-        
-        response = requests.get(url, headers=self.headers)
-        response.raise_for_status()
-        return response.json()
+        return self._get(url)
 
 
 # Helper function to print exercises nicely
