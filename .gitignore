@@ -1,0 +1,6 @@
+# Security: Ignore environment variables that contain secrets
+.env
+
+# Ignore OS-generated files
+.DS_Store
+Thumbs.db

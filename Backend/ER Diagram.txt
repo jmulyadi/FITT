@@ -1,4 +1,4 @@
-    USER ||--o{ WORKOUT : performs
+USER ||--o{ WORKOUT : performs
     USER ||--o{ MEAL : eats
     
     WORKOUT ||--o| CARDIO : is_a
@@ -10,7 +10,8 @@
     MEAL ||--o{ FOOD : consists_of
 
     USER {
-        string username PK
+        uuid id PK          %% Supabase Auth UUID
+        string username UK  %% Unique, used as FK in workout and meal
         int age
         string gender
         float weight
@@ -39,18 +40,18 @@
 
     EXERCISE {
         int exercise_id PK
-        int workout_id FK  %% Link back to STRENGTH session
+        int workout_id FK   %% Link back to STRENGTH session
         string name
         string muscle_group
     }
 
     SET {
         int set_id PK
-        int exercise_id FK %% Link back to specific EXERCISE
+        int exercise_id FK  %% Link back to specific EXERCISE
         int set_num
         int reps
         float weight
-        string intensity
+        int intensity       %% 1=light, 2=moderate, 3=heavy
     }
 
     MEAL {
@@ -67,4 +68,4 @@
         string name
         string type
         int calories
-    }}
+    }
