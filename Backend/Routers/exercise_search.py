@@ -1,5 +1,3 @@
-from readline import backend
-
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from dependencies import get_backend
 from DBhelpermethods import FitnessBackend
