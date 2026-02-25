@@ -1,5 +1,3 @@
-from readline import backend
-
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from typing import Optional
 from dependencies import get_backend

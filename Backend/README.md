@@ -2,6 +2,8 @@
 
 **FITT** is a comprehensive fitness tracking backend that manages workouts, meals, nutrition, strength training, cardio, and analytics for fitness enthusiasts.
 
+TO RUN: PYTHONPATH=Backend python3 -m uvicorn Backend.FastAPImain:app --reload
+TO VIEW: http://127.0.0.1:8000/docs
 ---
 
 ## Table of Contents
