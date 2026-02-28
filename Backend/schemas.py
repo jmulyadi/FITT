@@ -3,7 +3,7 @@ from typing import Optional
 
 
 # ============================================================================
-# AUTH SCHEMAS
+# USER SCHEMAS
 # ============================================================================
 
 class SignUpRequest(BaseModel):
@@ -12,32 +12,11 @@ class SignUpRequest(BaseModel):
     username: str = Field(min_length=3, max_length=30)
     age: int = Field(ge=13, le=120)
     gender: str = Field(pattern="^(male|female|other)$")
-    weight: float = Field(gt=0, le=700)     # kg
-    height: float = Field(gt=0, le=300)     # cm
+    weight: float = Field(gt=0, le=700)
+    height: float = Field(gt=0, le=300)
     experience_level: str = Field(pattern="^(beginner|intermediate|advanced)$")
     bmi: float = Field(gt=0, le=100)
 
-
-class SignInRequest(BaseModel):
-    email: EmailStr
-    password: str
-
-
-class RefreshRequest(BaseModel):
-    refresh_token: str
-
-
-class ResetPasswordRequest(BaseModel):
-    email: EmailStr
-
-
-class UpdatePasswordRequest(BaseModel):
-    new_password: str = Field(min_length=8)
-
-
-# ============================================================================
-# USER SCHEMAS
-# ============================================================================
 
 class UpdateProfileRequest(BaseModel):
     age: Optional[int] = Field(default=None, ge=13, le=120)
@@ -53,36 +32,23 @@ class UpdateProfileRequest(BaseModel):
 # ============================================================================
 
 class WorkoutCreate(BaseModel):
-    date: str = Field(pattern=r"^\d{4}-\d{2}-\d{2}$", description="ISO format: YYYY-MM-DD")
+    date: str = Field(pattern=r"^\d{4}-\d{2}-\d{2}$", description="YYYY-MM-DD")
     duration: int = Field(gt=0, le=1440, description="Duration in minutes")
     calories_burned: int = Field(ge=0, le=10000)
+    type: str = Field(pattern="^(cardio|strength)$", description="'cardio' or 'strength'")
+    cardio_type: Optional[str] = Field(default=None, min_length=2, max_length=50,
+                                        description="Required if type is cardio. e.g. running, cycling")
+    distance: Optional[float] = Field(default=None, gt=0, le=1000,
+                                       description="Required if type is cardio. Distance in km")
 
 
 class WorkoutUpdate(BaseModel):
     date: Optional[str] = Field(default=None, pattern=r"^\d{4}-\d{2}-\d{2}$")
     duration: Optional[int] = Field(default=None, gt=0, le=1440)
     calories_burned: Optional[int] = Field(default=None, ge=0, le=10000)
-
-
-# ============================================================================
-# CARDIO SCHEMAS
-# ============================================================================
-
-class CardioCreate(BaseModel):
-    cardio_type: str = Field(min_length=2, max_length=50, description="e.g. running, cycling, swimming")
-    distance: float = Field(gt=0, le=1000, description="Distance in km")
-
-
-class CardioUpdate(BaseModel):
     cardio_type: Optional[str] = Field(default=None, min_length=2, max_length=50)
     distance: Optional[float] = Field(default=None, gt=0, le=1000)
 
-
-# ============================================================================
-# STRENGTH SCHEMAS
-# ============================================================================
-
-# Strength session has no extra fields beyond workout_id
 
 # ============================================================================
 # EXERCISE SCHEMAS
@@ -121,7 +87,7 @@ class SetUpdate(BaseModel):
 # ============================================================================
 
 class MealCreate(BaseModel):
-    date: str = Field(pattern=r"^\d{4}-\d{2}-\d{2}$", description="ISO format: YYYY-MM-DD")
+    date: str = Field(pattern=r"^\d{4}-\d{2}-\d{2}$", description="YYYY-MM-DD")
     meal_num: int = Field(ge=1, le=10, description="1=Breakfast, 2=Lunch, 3=Dinner, etc.")
     calories_in: int = Field(ge=0, le=10000)
 
