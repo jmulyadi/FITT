@@ -1,31 +1,103 @@
 from fastapi import APIRouter, Depends, HTTPException, status
-from dependencies import get_backend
-from schemas import UpdateProfileRequest
+from supabase import create_client
+from dotenv import load_dotenv
+from dependencies import get_backend, get_authenticated_client
+from schemas import SignUpRequest, UpdateProfileRequest
 from DBhelpermethods import FitnessBackend
+import os
+
+load_dotenv()
+
+SUPABASE_URL = os.getenv("SUPABASE_URL")
+SUPABASE_ANON_KEY = os.getenv("SUPABASE_ANON_KEY")
+SUPABASE_SERVICE_ROLE_KEY = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
 
 router = APIRouter()
 
 
-@router.get("/me")
-def get_my_profile(backend: FitnessBackend = Depends(get_backend)):
-    """Returns the profile of the currently authenticated user."""
-    username = backend.get_username_from_session()
-    return backend.get_user(username)
+@router.post("/", status_code=status.HTTP_201_CREATED)
+def create_user(body: SignUpRequest):
+    """
+    Register a new user. Creates Supabase auth account and profile row.
+    Returns user_id, username, and email.
+    """
+    client = create_client(SUPABASE_URL, SUPABASE_ANON_KEY)
+    admin_client = create_client(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
+
+    auth_response = client.auth.sign_up({
+        "email": body.email,
+        "password": body.password
+    })
+
+    if not auth_response.user:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Sign up failed.")
+
+    user_id = auth_response.user.id
+
+    profile_data = {
+        "id": user_id,
+        "username": body.username,
+        "age": body.age,
+        "gender": body.gender,
+        "weight": body.weight,
+        "height": body.height,
+        "experience_level": body.experience_level,
+        "bmi": body.bmi,
+    }
+
+    try:
+        response = client.table("USER").insert(profile_data).execute()
+        if not response.data:
+            raise RuntimeError("Profile insert returned no data.")
+    except Exception as e:
+        admin_client.auth.admin.delete_user(user_id)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Sign up failed during profile creation: {e}"
+        )
+
+    return {"user_id": user_id, "username": body.username, "email": body.email}
 
 
-@router.patch("/me")
-def update_my_profile(
+@router.get("/{user_id}")
+def get_user(user_id: str, backend: FitnessBackend = Depends(get_backend)):
+    """Returns the profile for the given user_id."""
+    try:
+        return backend.get_user_by_id(user_id)
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+
+
+@router.patch("/{user_id}")
+def update_user(
+    user_id: str,
     body: UpdateProfileRequest,
     backend: FitnessBackend = Depends(get_backend)
 ):
-    """Updates allowed profile fields. Only pass fields you want to change."""
-    username = backend.get_username_from_session()
+    """Updates allowed profile fields for the given user_id."""
     updates = body.model_dump(exclude_none=True)
-
     if not updates:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="No fields provided for update."
         )
+    try:
+        return backend.update_user_profile(user_id, **updates)
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
 
-    return backend.update_user_profile(username, **updates)
+
+@router.delete("/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_user(user_id: str, client=Depends(get_authenticated_client)):
+    """
+    Permanently deletes the user's account and all their data.
+    CASCADE handles wiping workouts, meals, and all child records.
+    """
+    admin_client = create_client(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
+    try:
+        admin_client.auth.admin.delete_user(user_id)
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Failed to delete user: {e}"
+        )

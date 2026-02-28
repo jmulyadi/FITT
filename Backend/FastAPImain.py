@@ -4,11 +4,7 @@ from contextlib import asynccontextmanager
 from dotenv import load_dotenv
 import os
 
-from Routers import (
-    auth, users, workouts, cardio, strength,
-    exercises, sets, meals, food, analytics,
-    exercise_search, food_search
-)
+from Routers import users, workouts, meals
 
 load_dotenv()
 
@@ -29,36 +25,22 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(
     title="FITT API",
-    description="Fitness tracking backend – workouts, meals, nutrition and analytics.",
-    version="1.0.0",
+    description="Fitness tracking backend — workouts, meals, nutrition and analytics.",
+    version="2.0.0",
     lifespan=lifespan,
 )
 
-ALLOWED_ORIGINS = os.getenv("ALLOWED_ORIGINS", "http://localhost:3000").split(",")
-
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=ALLOWED_ORIGINS,
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# Core CRUD routes
-app.include_router(auth.router,            prefix="/auth",            tags=["Auth"])
-app.include_router(users.router,           prefix="/users",           tags=["Users"])
-app.include_router(workouts.router,        prefix="/workouts",        tags=["Workouts"])
-app.include_router(cardio.router,          prefix="/cardio",          tags=["Cardio"])
-app.include_router(strength.router,        prefix="/strength",        tags=["Strength"])
-app.include_router(exercises.router,       prefix="/exercises",       tags=["Exercises"])
-app.include_router(sets.router,            prefix="/sets",            tags=["Sets"])
-app.include_router(meals.router,           prefix="/meals",           tags=["Meals"])
-app.include_router(food.router,            prefix="/food",            tags=["Food"])
-app.include_router(analytics.router,       prefix="/analytics",       tags=["Analytics"])
-
-# External API bridge routes
-app.include_router(exercise_search.router, prefix="/exercise-search", tags=["Exercise Search (ExerciseDB)"])
-app.include_router(food_search.router,     prefix="/food-search",     tags=["Food Search (OpenFoodFacts)"])
+app.include_router(users.router,    prefix="/users",    tags=["Users"])
+app.include_router(workouts.router, prefix="/users",    tags=["Workouts"])
+app.include_router(meals.router,    prefix="/users",    tags=["Meals"])
 
 
 @app.get("/", tags=["Health"])
