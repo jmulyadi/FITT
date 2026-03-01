@@ -1,17 +1,14 @@
 USER ||--o{ WORKOUT : performs
     USER ||--o{ MEAL : eats
-    
-    WORKOUT ||--o| CARDIO : is_a
-    WORKOUT ||--o| STRENGTH : is_a
-    
-    STRENGTH ||--o{ EXERCISE : includes
+
+    WORKOUT ||--o{ EXERCISE : includes
     EXERCISE ||--o{ SET : records
-    
+
     MEAL ||--o{ FOOD : consists_of
 
     USER {
-        uuid id PK          %% Supabase Auth UUID
-        string username UK  %% Unique, used as FK in workout and meal
+        uuid id PK
+        string username UK
         int age
         string gender
         float weight
@@ -22,49 +19,42 @@ USER ||--o{ WORKOUT : performs
 
     WORKOUT {
         int workout_id PK
-        string username FK  %% Link back to USER
+        string username FK      %% Link back to USER
         date date
-        int duration
+        int duration            %% minutes
         int calories_burned
-    }
-
-    CARDIO {
-        int workout_id PK, FK %% Inherited from WORKOUT
-        string cardio_type
-        float distance
-    }
-
-    STRENGTH {
-        int workout_id PK, FK %% Inherited from WORKOUT
+        string type             %% 'cardio' or 'strength'
+        string cardio_type      %% e.g. running, cycling -- only set if type = 'cardio'
+        float distance          %% km -- only set if type = 'cardio'
     }
 
     EXERCISE {
         int exercise_id PK
-        int workout_id FK   %% Link back to STRENGTH session
+        int workout_id FK       %% Link back to WORKOUT
         string name
         string muscle_group
     }
 
     SET {
         int set_id PK
-        int exercise_id FK  %% Link back to specific EXERCISE
+        int exercise_id FK      %% Link back to EXERCISE
         int set_num
         int reps
-        float weight
-        int intensity       %% 1=light, 2=moderate, 3=heavy
+        float weight            %% kg
+        int intensity           %% 1=very light, 10=max effort
     }
 
     MEAL {
         int meal_id PK
-        string username FK  %% Link back to USER
+        string username FK      %% Link back to USER
         date date
-        int meal_num
+        int meal_num            %% 1=Breakfast, 2=Lunch, 3=Dinner, etc.
         int calories_in
     }
 
     FOOD {
         int food_id PK
-        int meal_id FK      %% Link back to specific MEAL
+        int meal_id FK          %% Link back to MEAL
         string name
         string type
         int calories

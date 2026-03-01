@@ -1,420 +1,802 @@
-# FITT Backend API Documentation
+# FITT Backend API
 
-**FITT** is a comprehensive fitness tracking backend that manages workouts, meals, nutrition, strength training, cardio, and analytics for fitness enthusiasts.
+**FITT** is a fitness tracking backend that manages workouts, meals, nutrition, and analytics.
 
-TO RUN: PYTHONPATH=Backend python3 -m uvicorn Backend.FastAPImain:app --reload
-TO VIEW: http://127.0.0.1:8000/docs
+**Local URL:** `http://localhost:8000`  
+**Interactive Docs:** `http://localhost:8000/docs`  
+**Run command:** `uvicorn FastAPImain:app --reload` (from the `Backend/` folder)
+
 ---
 
 ## Table of Contents
 
-- [Overview](#overview)
-- [Tech Stack](#tech-stack)
-- [Setup Instructions](#setup-instructions)
-- [Environment Variables](#environment-variables)
-- [API Endpoints](#api-endpoints)
+- [Setup](#setup)
 - [Authentication](#authentication)
-- [Request/Response Examples](#requestresponse-examples)
-- [Database Schema](#database-schema)
+- [Users](#users)
+- [Workouts](#workouts)
+- [Exercises](#exercises)
+- [Sets](#sets)
+- [Meals](#meals)
+- [Food](#food)
+- [Exercise Search (ExerciseDB)](#exercise-search-exercisedb)
+- [Food Search (OpenFoodFacts)](#food-search-openfoodfacts)
+- [Analytics](#analytics)
 - [Error Handling](#error-handling)
-
-
----
-
-## Overview
-
-The FITT backend is a **FastAPI** application that provides RESTful endpoints for managing:
-- **User authentication** and profile management
-- **Workout tracking** (strength training, cardio)
-- **Exercise data** (custom and external database)
-- **Meal tracking** and nutrition logging
-- **Analytics** on fitness progress
-- **Integration with external APIs** (ExerciseDB, OpenFoodFacts)
-
-**API Base URL:** 
-- Local: `http://localhost:8000`
-- Production: (set via `ALLOWED_ORIGINS` env variable)
-
-**API Documentation:** `http://localhost:8000/docs` (Swagger UI) or `http://localhost:8000/redoc` (ReDoc)
+- [Database Schema](#database-schema)
 
 ---
 
-## Tech Stack
-
-| Component | Version |
-|-----------|---------|
-| **Framework** | FastAPI 0.115.0 |
-| **Server** | Uvicorn 0.30.6 |
-| **Database** | Supabase (PostgreSQL) |
-| **Authentication** | Supabase Auth (JWT) |
-| **Validation** | Pydantic 2.8.2 |
-| **HTTP Client** | Requests 2.32.3 |
-
----
-
-## Setup Instructions
+## Setup
 
 ### Prerequisites
 - Python 3.8+
-- Supabase account and project created
+- A Supabase project ([supabase.com](https://supabase.com))
+- An ExerciseDB API key ([rapidapi.com](https://rapidapi.com/justin-WFnsXH_t6/api/exercisedb))
 
 ### Installation
 
-1. **Clone the repository:**
-   ```bash
-   git clone <repository-url>
-   cd Backend
-   ```
-
-2. **Create a virtual environment:**
-   ```bash
-   python -m venv venv
-   source venv/bin/activate  # On Windows: venv\Scripts\activate
-   ```
-
-3. **Install dependencies:**
-   ```bash
-   pip install -r requirements.txt
-   ```
-
-4. **Set up environment variables:**
-   Create a `.env` file in the `Backend/` directory (see [Environment Variables](#environment-variables))
-
-5. **Run the server:**
-   ```bash
-   uvicorn FastAPImain:app --reload --host 0.0.0.0 --port 8000
-   ```
-
-The API will be available at `http://localhost:8000`
-
----
-
-## Environment Variables
-
-Create a `.env` file in the `Backend/` directory with the following variables:
-
-```env
-# Supabase Configuration
-SUPABASE_URL=your_supabase_url_here
-SUPABASE_ANON_KEY=your_anon_key_here
-SUPABASE_SERVICE_ROLE_KEY=your_service_role_key_here
-
-EXERCISEDB_API_KEY
-EXERCISEDB_API_HOST=exercisedb.p.rapidapi.com
-EXERCISEDB_BASE_URL=https://exercisedb.p.rapidapi.com
-
+```bash
+cd Backend
+python -m venv venv
+source venv/bin/activate        # Windows: venv\Scripts\activate
+pip install -r requirements.txt
+uvicorn FastAPImain:app --reload
 ```
 
-**Getting Supabase Keys:**
-1. Go to [supabase.com](https://supabase.com) and create a project
-2. Navigate to **Settings → API**
-3. Copy the URL and keys into your `.env` file
+### Environment Variables
 
----
+Create a `.env` file inside `Backend/`:
 
-## API Endpoints
+```env
+SUPABASE_URL=your_supabase_project_url
+SUPABASE_ANON_KEY=your_supabase_anon_key
+SUPABASE_SERVICE_ROLE_KEY=your_supabase_service_role_key
 
-### Authentication Endpoints
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| `POST` | `/auth/signup` | Register a new user |
-| `POST` | `/auth/signin` | Login with email & password |
-| `POST` | `/auth/refresh` | Refresh JWT token |
-| `POST` | `/auth/reset-password` | Request password reset |
-| `POST` | `/auth/update-password` | Update user password |
+EXERCISEDB_API_KEY=your_rapidapi_key
+EXERCISEDB_API_HOST=exercisedb.p.rapidapi.com
+EXERCISEDB_BASE_URL=https://exercisedb.p.rapidapi.com
+```
 
-### User Endpoints
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| `GET` | `/users/{user_id}` | Get user profile |
-| `PUT` | `/users/{user_id}` | Update user profile |
-| `DELETE` | `/users/{user_id}` | Delete user account |
-
-### Workout Endpoints
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| `GET` | `/workouts` | Get all workouts for user |
-| `GET` | `/workouts/{workout_id}` | Get specific workout |
-| `POST` | `/workouts` | Create a new workout |
-| `PUT` | `/workouts/{workout_id}` | Update workout |
-| `DELETE` | `/workouts/{workout_id}` | Delete workout |
-
-### Strength Training Endpoints
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| `GET` | `/strength` | Get all strength workouts |
-| `POST` | `/strength` | Create strength workout |
-| `PUT` | `/strength/{strength_id}` | Update strength workout |
-| `DELETE` | `/strength/{strength_id}` | Delete strength workout |
-
-### Cardio Endpoints
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| `GET` | `/cardio` | Get all cardio workouts |
-| `POST` | `/cardio` | Create cardio workout |
-| `PUT` | `/cardio/{cardio_id}` | Update cardio workout |
-| `DELETE` | `/cardio/{cardio_id}` | Delete cardio workout |
-
-### Exercise Endpoints
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| `GET` | `/exercises` | Get all exercises |
-| `GET` | `/exercises/{exercise_id}` | Get specific exercise |
-| `POST` | `/exercises` | Create custom exercise |
-| `PUT` | `/exercises/{exercise_id}` | Update exercise |
-| `DELETE` | `/exercises/{exercise_id}` | Delete exercise |
-
-### Sets Endpoints
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| `GET` | `/sets` | Get all sets |
-| `POST` | `/sets` | Create a new set |
-| `PUT` | `/sets/{set_id}` | Update set |
-| `DELETE` | `/sets/{set_id}` | Delete set |
-
-### Meals Endpoints
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| `GET` | `/meals` | Get all meals |
-| `GET` | `/meals/{meal_id}` | Get specific meal |
-| `POST` | `/meals` | Create a new meal |
-| `PUT` | `/meals/{meal_id}` | Update meal |
-| `DELETE` | `/meals/{meal_id}` | Delete meal |
-
-### Food Endpoints
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| `GET` | `/food` | Get all food items |
-| `GET` | `/food/{food_id}` | Get specific food |
-| `POST` | `/food` | Add custom food item |
-| `PUT` | `/food/{food_id}` | Update food item |
-| `DELETE` | `/food/{food_id}` | Delete food item |
-
-### Search Endpoints (External APIs)
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| `GET` | `/exercise-search?q={query}` | Search ExerciseDB for exercises |
-| `GET` | `/food-search?q={query}` | Search OpenFoodFacts for food items |
-
-### Analytics Endpoints
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| `GET` | `/analytics/workout-summary` | Get workout statistics |
-| `GET` | `/analytics/nutrition-summary` | Get nutrition statistics |
-| `GET` | `/analytics/progress` | Get user progress metrics |
+Get Supabase keys from: **Supabase Dashboard → Settings → API**
 
 ---
 
 ## Authentication
 
-The API uses **JWT (JSON Web Token)** based authentication via Supabase.
+Authentication is handled by **Supabase Auth** directly on the frontend — the backend never issues tokens itself.
 
-### How to Authenticate
+### Flow
 
-1. **Sign Up / Sign In:**
-   ```bash
-   POST /auth/signup
-   POST /auth/signin
-   ```
-   Returns: `access_token`, `refresh_token`, `user_id`
+1. **Sign up** via `POST /users/` (this API)
+2. **Sign in** directly with the [Supabase client SDK](https://supabase.com/docs/reference/javascript/auth-signin) on the frontend
+3. Supabase returns an `access_token` (JWT)
+4. **Include that token** on every protected request:
 
-2. **Include Token in Requests:**
-   Add the `access_token` to the `Authorization` header:
-   ```
-   Authorization: Bearer <access_token>
-   ```
+```
+Authorization: Bearer <access_token>
+```
 
-3. **Refresh Token:**
-   When token expires, use the `refresh_token`:
-   ```bash
-   POST /auth/refresh
-   ```
+All endpoints except `POST /users/` require a valid Bearer token.
 
-### Protected Routes
+### Token Refresh
 
-All endpoints except `/auth/signup`, `/auth/signin`, `/exercise-search`, and `/food-search` require authentication.
+Handle token refresh with the Supabase client SDK on the frontend — it manages this automatically.
 
 ---
 
-## Request/Response Examples
+## Users
 
-### Sign Up
-
-**Request:**
-```bash
-curl -X POST "http://localhost:8000/auth/signup" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "email": "user@example.com",
-    "password": "securepass123",
-    "username": "fituser",
-    "age": 25,
-    "gender": "male",
-    "weight": 75.5,
-    "height": 180,
-    "experience_level": "intermediate",
-    "bmi": 23.3
-  }'
+### Create User
 ```
+POST /users/
+```
+No auth required. Creates both the Supabase auth account and the user profile.
 
-**Response:**
+**Request body:**
 ```json
 {
-  "user_id": "abc123xyz",
-  "username": "fituser",
   "email": "user@example.com",
-  "access_token": "eyJhbGc...",
-  "refresh_token": "refresh_...",
-  "expires_in": 3600
+  "password": "securepass123",
+  "username": "fituser",
+  "age": 25,
+  "gender": "male",
+  "weight": 75.5,
+  "height": 180.0,
+  "experience_level": "intermediate",
+  "bmi": 23.3
 }
 ```
+
+**Field rules:**
+- `password` — min 8 characters
+- `username` — 3–30 characters
+- `age` — 13–120
+- `gender` — `"male"`, `"female"`, or `"other"`
+- `weight` — kg, max 700
+- `height` — cm, max 300
+- `experience_level` — `"beginner"`, `"intermediate"`, or `"advanced"`
+
+**Response `201`:**
+```json
+{
+  "user_id": "uuid-string",
+  "username": "fituser",
+  "email": "user@example.com"
+}
+```
+
+---
+
+### Get User Profile
+```
+GET /users/{user_id}
+```
+**Response `200`:**
+```json
+{
+  "id": "uuid-string",
+  "username": "fituser",
+  "age": 25,
+  "gender": "male",
+  "weight": 75.5,
+  "height": 180.0,
+  "experience_level": "intermediate",
+  "bmi": 23.3
+}
+```
+
+---
+
+### Update User Profile
+```
+PATCH /users/{user_id}
+```
+Only include fields you want to change.
+
+**Request body (all optional):**
+```json
+{
+  "age": 26,
+  "weight": 74.0,
+  "bmi": 22.8
+}
+```
+
+---
+
+### Delete User
+```
+DELETE /users/{user_id}
+```
+Permanently deletes the account and all associated data. Returns `204 No Content`.
+
+---
+
+## Workouts
+
+A workout has a `type` of either `"cardio"` or `"strength"`. If cardio, `cardio_type` and `distance` are also required.
 
 ### Create Workout
-
-**Request:**
-```bash
-curl -X POST "http://localhost:8000/workouts" \
-  -H "Authorization: Bearer <access_token>" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "name": "Leg Day",
-    "date": "2024-02-19",
-    "duration_minutes": 60,
-    "notes": "Great workout!"
-  }'
+```
+POST /workouts/
 ```
 
-**Response:**
+**Strength workout:**
 ```json
 {
-  "id": "workout_123",
-  "user_id": "abc123xyz",
-  "name": "Leg Day",
-  "date": "2024-02-19",
-  "duration_minutes": 60,
-  "notes": "Great workout!"
+  "date": "2026-03-01",
+  "duration": 60,
+  "calories_burned": 400,
+  "type": "strength"
 }
 ```
 
-### Search Exercises
-
-**Request:**
-```bash
-curl -X GET "http://localhost:8000/exercise-search?q=squat"
-```
-
-**Response:**
+**Cardio workout:**
 ```json
 {
-  "exercises": [
+  "date": "2026-03-01",
+  "duration": 35,
+  "calories_burned": 300,
+  "type": "cardio",
+  "cardio_type": "running",
+  "distance": 5.2
+}
+```
+
+**Response `201`:**
+```json
+{ "workout_id": 42 }
+```
+
+---
+
+### Get All Workouts
+```
+GET /workouts/
+```
+Returns all workouts for the authenticated user, most recent first.
+
+---
+
+### Get Workout by Date
+```
+GET /workouts/date/{date_string}
+```
+`date_string` format: `YYYY-MM-DD`
+
+Returns workouts with fully nested exercises and sets.
+
+---
+
+### Get Workouts in Range
+```
+GET /workouts/range?start_date=2026-01-01&end_date=2026-03-01
+```
+
+---
+
+### Get Single Workout
+```
+GET /workouts/{workout_id}
+```
+Returns the workout with all nested exercises and sets:
+```json
+{
+  "workout_id": 42,
+  "date": "2026-03-01",
+  "type": "strength",
+  "duration": 60,
+  "calories_burned": 400,
+  "exercise": [
     {
-      "id": "ex_001",
-      "name": "Barbell Back Squat",
-      "muscle_group": "Legs",
-      "difficulty": "Intermediate",
-      "instructions": "...",
-      "equipment": "Barbell"
-    },
+      "exercise_id": 7,
+      "name": "Bench Press",
+      "muscle_group": "Chest",
+      "SET": [
+        { "set_id": 1, "set_num": 1, "reps": 10, "weight": 80.0, "intensity": 7 },
+        { "set_id": 2, "set_num": 2, "reps": 8,  "weight": 85.0, "intensity": 8 }
+      ]
+    }
   ]
 }
 ```
 
-### Get User Analytics
+---
 
-**Request:**
-```bash
-curl -X GET "http://localhost:8000/analytics/workout-summary" \
-  -H "Authorization: Bearer <access_token>"
+### Update Workout
 ```
-
-**Response:**
+PATCH /workouts/{workout_id}
+```
+**Request body (all optional):**
 ```json
 {
-  "total_workouts": 24,
-  "total_duration_minutes": 1440,
-  "average_workout_duration": 60,
-  "workouts_this_week": 5,
-  "last_workout": "2024-02-19"
+  "duration": 75,
+  "calories_burned": 450,
+  "cardio_type": "cycling",
+  "distance": 18.0
 }
 ```
 
 ---
 
-## Database Schema
+### Delete Workout
+```
+DELETE /workouts/{workout_id}
+```
+Cascade deletes all exercises and sets. Returns `204 No Content`.
 
-### Main Tables
+---
 
-| Table | Description |
-|-------|-------------|
-| `USER` | User profiles with fitness metrics |
-| `WORKOUT` | Workout sessions |
-| `STRENGTH` | Strength training sessions |
-| `CARDIO` | Cardio sessions |
-| `EXERCISE` | Exercise definitions |
-| `SETS` | Sets within strength workouts |
-| `MEAL` | Meal records |
-| `FOOD` | Food/nutrition items |
+## Exercises
 
-For detailed schema, see `ER Diagram.txt`
+Exercises belong to a strength workout. Each exercise has an array of sets.
 
-### User Profile Fields
-- `id` (UUID) - User ID from Supabase Auth
-- `username` (string) - Unique username
-- `email` (string) - User email
-- `age` (integer)
-- `gender` (male|female|other)
-- `weight` (float) - in kg
-- `height` (float) - in cm
-- `experience_level` (beginner|intermediate|advanced)
-- `bmi` (float)
-- `created_at` (timestamp)
-- `updated_at` (timestamp)
+### Add Exercise to Workout
+```
+POST /workouts/{workout_id}/exercises
+```
+**Request body:**
+```json
+{
+  "name": "Bench Press",
+  "muscle_group": "Chest"
+}
+```
+**Response `201`:**
+```json
+{ "exercise_id": 7 }
+```
+
+---
+
+### Get All Exercises for a Workout
+```
+GET /workouts/{workout_id}/exercises
+```
+
+---
+
+### Get Single Exercise
+```
+GET /workouts/{workout_id}/exercises/{exercise_id}
+```
+Returns the exercise with its sets array.
+
+---
+
+### Update Exercise
+```
+PATCH /workouts/{workout_id}/exercises/{exercise_id}
+```
+```json
+{
+  "name": "Incline Bench Press",
+  "muscle_group": "Upper Chest"
+}
+```
+
+---
+
+### Delete Exercise
+```
+DELETE /workouts/{workout_id}/exercises/{exercise_id}
+```
+Cascade deletes all sets. Returns `204 No Content`.
+
+---
+
+## Sets
+
+Sets belong to an exercise.
+
+### Add Set
+```
+POST /workouts/{workout_id}/exercises/{exercise_id}/sets
+```
+**Request body:**
+```json
+{
+  "set_num": 1,
+  "reps": 10,
+  "weight": 80.0,
+  "intensity": 7
+}
+```
+`intensity` is 1–10 (1 = very light, 10 = max effort).
+
+---
+
+### Get All Sets for an Exercise
+```
+GET /workouts/{workout_id}/exercises/{exercise_id}/sets
+```
+
+---
+
+### Get Single Set
+```
+GET /workouts/{workout_id}/exercises/{exercise_id}/sets/{set_id}
+```
+
+---
+
+### Update Set
+```
+PATCH /workouts/{workout_id}/exercises/{exercise_id}/sets/{set_id}
+```
+```json
+{
+  "reps": 12,
+  "weight": 82.5,
+  "intensity": 8
+}
+```
+
+---
+
+### Delete Set
+```
+DELETE /workouts/{workout_id}/exercises/{exercise_id}/sets/{set_id}
+```
+Returns `204 No Content`.
+
+---
+
+## Meals
+
+### Create Meal
+```
+POST /meals/
+```
+**Request body:**
+```json
+{
+  "date": "2026-03-01",
+  "meal_num": 1,
+  "calories_in": 600
+}
+```
+`meal_num`: 1 = Breakfast, 2 = Lunch, 3 = Dinner, 4+ = Snacks etc.
+
+**Response `201`:**
+```json
+{ "meal_id": 15 }
+```
+
+---
+
+### Get All Meals
+```
+GET /meals/
+GET /meals/?start_date=2026-01-01&end_date=2026-03-01
+```
+
+---
+
+### Get Meals by Date
+```
+GET /meals/date/{date_string}
+```
+Returns meals with all food items nested inside.
+
+---
+
+### Get Single Meal
+```
+GET /meals/{meal_id}
+```
+Returns meal with its food array.
+
+---
+
+### Update Meal
+```
+PATCH /meals/{meal_id}
+```
+```json
+{
+  "calories_in": 750
+}
+```
+
+---
+
+### Delete Meal
+```
+DELETE /meals/{meal_id}
+```
+Cascade deletes all food items. Returns `204 No Content`.
+
+---
+
+## Food
+
+Food items belong to a meal.
+
+### Add Food to Meal
+```
+POST /meals/{meal_id}/food
+```
+**Request body:**
+```json
+{
+  "name": "Chicken Breast",
+  "food_type": "Protein",
+  "calories": 250
+}
+```
+
+---
+
+### Get All Food for a Meal
+```
+GET /meals/{meal_id}/food
+```
+
+---
+
+### Get Single Food Item
+```
+GET /meals/{meal_id}/food/{food_id}
+```
+
+---
+
+### Update Food Item
+```
+PATCH /meals/{meal_id}/food/{food_id}
+```
+```json
+{
+  "calories": 280
+}
+```
+
+---
+
+### Delete Food Item
+```
+DELETE /meals/{meal_id}/food/{food_id}
+```
+Returns `204 No Content`.
+
+---
+
+## Exercise Search (ExerciseDB)
+
+Search a database of 1300+ exercises. Results include instructions, target muscles, and animated GIF demos. Requires `EXERCISEDB_API_KEY` in `.env`.
+
+### Search by Name
+```
+GET /workouts/exercise-search?name=bench&limit=10
+```
+
+### Browse by Body Part
+```
+GET /workouts/exercise-search/body-part/chest
+```
+Valid body parts: `back`, `cardio`, `chest`, `lower arms`, `lower legs`, `neck`, `shoulders`, `upper arms`, `upper legs`, `waist`
+
+### Browse by Target Muscle
+```
+GET /workouts/exercise-search/muscle/pectorals
+```
+
+### Browse by Equipment
+```
+GET /workouts/exercise-search/equipment/barbell
+```
+
+**Example response:**
+```json
+{
+  "count": 3,
+  "exercises": [
+    {
+      "id": "0025",
+      "name": "Barbell Bench Press",
+      "bodyPart": "chest",
+      "target": "pectorals",
+      "equipment": "barbell",
+      "gifUrl": "https://...",
+      "secondaryMuscles": ["triceps", "delts"],
+      "instructions": ["Lie on a flat bench...", "..."]
+    }
+  ]
+}
+```
+
+### Save Exercise from Search to a Workout
+```
+POST /workouts/{workout_id}/exercise-search/save
+```
+Takes an ExerciseDB `id` and saves that exercise directly to the workout.
+
+**Typical flow:**
+1. `GET /workouts/exercise-search?name=squat` — user picks a result
+2. Copy the `id` field from that result
+3. `POST /workouts/{workout_id}/exercise-search/save` with the id
+
+**Request body:**
+```json
+{ "exercise_db_id": "0025" }
+```
+
+**Response `201`:**
+```json
+{
+  "exercise_id": 9,
+  "name": "Barbell Bench Press",
+  "muscle_group": "Pectorals",
+  "equipment": "Barbell",
+  "gif_url": "https://...",
+  "instructions": ["..."]
+}
+```
+
+---
+
+## Food Search (OpenFoodFacts)
+
+Search a database of millions of food products. No API key required.
+
+### Search by Name
+```
+GET /meals/food-search?query=chicken breast&page=1&page_size=10
+```
+
+**Example response:**
+```json
+{
+  "count": 150,
+  "page": 1,
+  "page_size": 10,
+  "products": [
+    {
+      "barcode": "1234567890",
+      "name": "Chicken Breast",
+      "brand": "Some Brand",
+      "serving_size": "100g",
+      "nutriscore": "A",
+      "calories_per_100g": 165,
+      "calories_per_serving": 165,
+      "protein_g": 31.0,
+      "carbs_g": 0.0,
+      "fat_g": 3.6,
+      "image_url": "https://..."
+    }
+  ]
+}
+```
+
+### Look Up by Barcode
+```
+GET /meals/food-search/barcode/3017624010701
+```
+Useful for camera/scanner features.
+
+### Save Food by Barcode to a Meal
+```
+POST /meals/{meal_id}/food-search/save-by-barcode
+```
+Fetches the product, auto-calculates calories, and saves to the meal in one call.
+
+**Request body:**
+```json
+{
+  "barcode": "3017624010701",
+  "food_type": "Snack",
+  "servings": 1.5
+}
+```
+
+### Save Food by Name to a Meal
+```
+POST /meals/{meal_id}/food-search/save-by-name
+```
+Use after searching — user picks a result, you pass the name and calories directly.
+
+**Request body:**
+```json
+{
+  "name": "Chicken Breast",
+  "calories": 250,
+  "food_type": "Protein"
+}
+```
+
+---
+
+## Analytics
+
+### Net Calories for a Date
+```
+GET /workouts/analytics/net-calories/2026-03-01
+```
+**Response:**
+```json
+{
+  "calories_in": 2100,
+  "calories_burned": 400,
+  "net_calories": 1700
+}
+```
+
+### Workout Summary
+```
+GET /workouts/analytics/summary?start_date=2026-02-01&end_date=2026-03-01
+```
+**Response:**
+```json
+{
+  "total_workouts": 12,
+  "total_calories_burned": 4800,
+  "total_duration": 720,
+  "average_duration": 60.0,
+  "cardio_sessions": 4,
+  "strength_sessions": 8
+}
+```
+
+### Total Calories Burned
+```
+GET /workouts/analytics/calories-burned?start_date=2026-02-01&end_date=2026-03-01
+```
+
+### Average Workout Duration
+```
+GET /workouts/analytics/average-duration?start_date=2026-02-01&end_date=2026-03-01
+```
+
+### Exercise Progress Over Time
+```
+GET /workouts/analytics/progress/Bench Press?start_date=2026-01-01&end_date=2026-03-01
+```
+Tracks max weight and total volume per session for a specific exercise.
+
+**Response:**
+```json
+[
+  {
+    "date": "2026-01-10",
+    "workout_id": 5,
+    "exercise_id": 3,
+    "max_weight": 80.0,
+    "total_volume": 2400.0,
+    "num_sets": 3
+  },
+  {
+    "date": "2026-01-17",
+    "workout_id": 9,
+    "exercise_id": 7,
+    "max_weight": 85.0,
+    "total_volume": 2550.0,
+    "num_sets": 3
+  }
+]
+```
+
+### Nutrition Summary
+```
+GET /meals/analytics/summary?start_date=2026-02-01&end_date=2026-03-01
+```
+**Response:**
+```json
+{
+  "total_meals": 84,
+  "total_calories": 58800,
+  "average_calories_per_day": 1960.0,
+  "average_calories_per_meal": 700.0
+}
+```
+
+### Total Calories Consumed
+```
+GET /meals/analytics/calories-consumed?start_date=2026-02-01&end_date=2026-03-01
+```
 
 ---
 
 ## Error Handling
 
-The API returns standard HTTP status codes and error messages:
+All errors return JSON with a `detail` field:
 
-| Status Code | Meaning |
-|-------------|---------|
-| `200` | OK - Successful request |
-| `201` | Created - Resource created successfully |
-| `400` | Bad Request - Invalid input |
-| `401` | Unauthorized - Missing or invalid token |
-| `403` | Forbidden - Insufficient permissions |
-| `404` | Not Found - Resource doesn't exist |
-| `500` | Internal Server Error |
-
-### Error Response Format
 ```json
-{
-  "detail": "Error message describing what went wrong"
-}
+{ "detail": "Workout 999 not found." }
 ```
 
-### Common Errors
-
-**Missing Authentication Token:**
-```json
-{
-  "detail": "Not authenticated"
-}
-```
-
-**Invalid Email Format:**
-```json
-{
-  "detail": "Invalid email format"
-}
-```
-
-**Weak Password:**
-```json
-{
-  "detail": "Password must be at least 8 characters"
-}
-```
+| Status | Meaning |
+|--------|---------|
+| `200` | OK |
+| `201` | Created |
+| `204` | Deleted (no body returned) |
+| `400` | Bad request / validation error |
+| `401` | Missing or invalid auth token |
+| `404` | Resource not found |
+| `502` | External API (ExerciseDB / OpenFoodFacts) failed |
+| `503` | ExerciseDB API key not configured |
 
 ---
 
+## Database Schema
+
+```
+USER ||--o{ WORKOUT : performs
+USER ||--o{ MEAL    : eats
+
+WORKOUT  ||--o{ EXERCISE : includes
+EXERCISE ||--o{ SET      : records
+
+MEAL ||--o{ FOOD : consists_of
+```
+
+| Table | Key Fields |
+|-------|-----------|
+| `USER` | `id` (UUID), `username`, `age`, `gender`, `weight`, `height`, `experience_level`, `bmi` |
+| `WORKOUT` | `workout_id`, `username` (FK), `date`, `duration`, `calories_burned`, `type`, `cardio_type`*, `distance`* |
+| `EXERCISE` | `exercise_id`, `workout_id` (FK), `name`, `muscle_group` |
+| `SET` | `set_id`, `exercise_id` (FK), `set_num`, `reps`, `weight`, `intensity` |
+| `MEAL` | `meal_id`, `username` (FK), `date`, `meal_num`, `calories_in` |
+| `FOOD` | `food_id`, `meal_id` (FK), `name`, `type`, `calories` |
+
+*`cardio_type` and `distance` are only populated when `workout.type = 'cardio'`

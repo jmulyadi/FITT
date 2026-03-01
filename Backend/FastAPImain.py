@@ -39,8 +39,8 @@ app.add_middleware(
 )
 
 app.include_router(users.router,    prefix="/users",    tags=["Users"])
-app.include_router(workouts.router, prefix="/users",    tags=["Workouts"])
-app.include_router(meals.router,    prefix="/users",    tags=["Meals"])
+app.include_router(workouts.router, prefix="/workouts", tags=["Workouts"])
+app.include_router(meals.router,    prefix="/meals",    tags=["Meals"])
 
 
 @app.get("/", tags=["Health"])
