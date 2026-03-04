@@ -1,11 +1,17 @@
----
-Team
+# Team
+
 Developed by:
+
 Josh Mulyadi
+
 Sohom Dey
+
 Steven Zhang
+
 Sania Mathew
+
 Felix Bogart
+
 Massimo Adams
 
 The Ohio State University
