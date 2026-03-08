@@ -55,7 +55,10 @@ SUPABASE_SERVICE_ROLE_KEY=your_supabase_service_role_key
 EXERCISEDB_API_KEY=your_rapidapi_key
 EXERCISEDB_API_HOST=exercisedb.p.rapidapi.com
 EXERCISEDB_BASE_URL=https://exercisedb.p.rapidapi.com
+
+GROQ_API_KEY=your_groq_api_key
 ```
+Get a free Groq API key at **https://console.groq.com**
 
 Get Supabase keys from: **Supabase Dashboard → Settings → API**
 
