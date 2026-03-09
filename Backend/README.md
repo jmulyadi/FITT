@@ -20,6 +20,7 @@
 - [Food](#food)
 - [Exercise Search (ExerciseDB)](#exercise-search-exercisedb)
 - [Food Search (OpenFoodFacts)](#food-search-openfoodfacts)
+- [Groq Chat (FITT AI Assistant)](#groq-chat-fitt-ai-assistant)
 - [Analytics](#analytics)
 - [Error Handling](#error-handling)
 - [Database Schema](#database-schema)
@@ -669,6 +670,35 @@ Use after searching — user picks a result, you pass the name and calories dire
 ```
 
 ---
+
+## Groq Chat (FITT AI Assistant)
+
+AI-powered fitness assistant powered by Groq. Maintains conversation history for multi-turn chat. Requires `GROQ_API_KEY` in `.env` — get a free key at [console.groq.com](https://console.groq.com).
+
+### Send a Message
+```
+POST /groq/chat
+```
+**Request body:**
+```json
+{
+  "messages": [
+    { "role": "user", "content": "What's a good chest workout?" },
+    { "role": "assistant", "content": "Try bench press, push-ups..." },
+    { "role": "user", "content": "How many sets should I do?" }
+  ]
+}
+```
+Pass the full conversation history each request to maintain context. Each message needs a `role` (`"user"` or `"assistant"`) and `content`.
+
+**Response `200`:**
+```json
+{
+  "response": "For a beginner, 3 sets per exercise is a great starting point..."
+}
+```
+
+
 
 ## Analytics
 
