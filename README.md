@@ -21,6 +21,16 @@ CSE Knowledge-Based Systems Project
 
 # FITT 💪
 
+### How to Run
+
+Make sure to have docker installed
+run
+
+```bash
+
+docker compose up
+```
+
 ### AI-Powered Fitness & Wellness Coach
 
 **FITT** is an AI-powered coaching platform designed to help users improve their **fitness, nutrition, sleep, and overall wellness**.
@@ -118,8 +128,6 @@ DATABASE_URL=
 ```
 
 ---
-
-# 👨‍💻 Team
 
 Developed by students at **The Ohio State University**.
 

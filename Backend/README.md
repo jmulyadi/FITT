@@ -1,4 +1,5 @@
 # FITT API — Developer Guide
+
 **v2.0.0 · FastAPI + Supabase**
 
 FITT is a fitness-tracking REST API built with FastAPI and backed by Supabase (PostgreSQL + Auth). It lets clients log workouts, track strength exercises and sets, record meals and food items, and pull analytics — all secured by JWT bearer tokens issued by Supabase.
@@ -53,6 +54,7 @@ EXERCISEDB_BASE_URL=https://exercisedb.p.rapidapi.com
 
 GROQ_API_KEY=your_groq_api_key
 ```
+
 Get a free Groq API key at **https://console.groq.com**
 
 > ⚠️ **Never commit `.env` to version control.** Add it to your `.gitignore`.
@@ -137,6 +139,7 @@ The API uses Supabase Auth. The frontend signs users in directly with Supabase a
 ```
 
 **Returns:**
+
 ```json
 { "user_id": "...", "username": "alex", "email": "alex@example.com" }
 ```
@@ -148,10 +151,10 @@ Sign in via the Supabase client library on the frontend. In JavaScript:
 ```javascript
 const { data } = await supabase.auth.signInWithPassword({
   email: "alex@example.com",
-  password: "MySecret99!"
+  password: "MySecret99!",
 });
 
-const token = data.session.access_token;  // use this as Bearer token
+const token = data.session.access_token; // use this as Bearer token
 ```
 
 ### Making Authenticated Requests
@@ -166,7 +169,7 @@ In JavaScript (fetch):
 
 ```javascript
 const res = await fetch("http://localhost:8000/workouts/", {
-  headers: { "Authorization": `Bearer ${token}` }
+  headers: { Authorization: `Bearer ${token}` },
 });
 ```
 
@@ -176,11 +179,11 @@ const res = await fetch("http://localhost:8000/workouts/", {
 
 ## 3. Users — `/users`
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| `POST` | `/users/` | Register a new user (no auth required) |
-| `GET` | `/users/{user_id}` | Get a user's profile |
-| `PATCH` | `/users/{user_id}` | Update profile fields |
+| Method   | Endpoint           | Description                             |
+| -------- | ------------------ | --------------------------------------- |
+| `POST`   | `/users/`          | Register a new user (no auth required)  |
+| `GET`    | `/users/{user_id}` | Get a user's profile                    |
+| `PATCH`  | `/users/{user_id}` | Update profile fields                   |
 | `DELETE` | `/users/{user_id}` | Permanently delete account and all data |
 
 ### PATCH /users/{user_id} — Update Profile
@@ -205,13 +208,13 @@ Workouts are either `cardio` or `strength`. A cardio workout stores distance and
 
 ### 4.1 Workout CRUD
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| `POST` | `/workouts/` | Log a new workout |
-| `GET` | `/workouts/` | List workouts (optional date filters) |
-| `GET` | `/workouts/{id}` | Get one workout with all exercises & sets |
-| `PATCH` | `/workouts/{id}` | Update workout fields |
-| `DELETE` | `/workouts/{id}` | Delete workout and all child data |
+| Method   | Endpoint         | Description                               |
+| -------- | ---------------- | ----------------------------------------- |
+| `POST`   | `/workouts/`     | Log a new workout                         |
+| `GET`    | `/workouts/`     | List workouts (optional date filters)     |
+| `GET`    | `/workouts/{id}` | Get one workout with all exercises & sets |
+| `PATCH`  | `/workouts/{id}` | Update workout fields                     |
+| `DELETE` | `/workouts/{id}` | Delete workout and all child data         |
 
 #### POST /workouts/ — Log a Cardio Workout
 
@@ -252,13 +255,13 @@ GET /workouts/?start_date=2026-01-01&end_date=2026-03-09      # specific range
 
 ### 4.2 Exercises
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| `POST` | `/workouts/{id}/exercises` | Add an exercise to a strength workout |
-| `GET` | `/workouts/{id}/exercises` | List all exercises for a workout |
-| `GET` | `/workouts/{id}/exercises/{ex_id}` | Get one exercise with its sets |
-| `PATCH` | `/workouts/{id}/exercises/{ex_id}` | Update exercise name or muscle group |
-| `DELETE` | `/workouts/{id}/exercises/{ex_id}` | Delete exercise and all its sets |
+| Method   | Endpoint                           | Description                           |
+| -------- | ---------------------------------- | ------------------------------------- |
+| `POST`   | `/workouts/{id}/exercises`         | Add an exercise to a strength workout |
+| `GET`    | `/workouts/{id}/exercises`         | List all exercises for a workout      |
+| `GET`    | `/workouts/{id}/exercises/{ex_id}` | Get one exercise with its sets        |
+| `PATCH`  | `/workouts/{id}/exercises/{ex_id}` | Update exercise name or muscle group  |
+| `DELETE` | `/workouts/{id}/exercises/{ex_id}` | Delete exercise and all its sets      |
 
 #### POST /workouts/{id}/exercises
 
@@ -273,13 +276,13 @@ GET /workouts/?start_date=2026-01-01&end_date=2026-03-09      # specific range
 
 ### 4.3 Sets
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| `POST` | `/workouts/{id}/exercises/{ex_id}/sets` | Add a set to an exercise |
-| `GET` | `/workouts/{id}/exercises/{ex_id}/sets` | List all sets for an exercise |
-| `GET` | `/workouts/{id}/exercises/{ex_id}/sets/{set_id}` | Get one set |
-| `PATCH` | `/workouts/{id}/exercises/{ex_id}/sets/{set_id}` | Update set fields |
-| `DELETE` | `/workouts/{id}/exercises/{ex_id}/sets/{set_id}` | Delete a set |
+| Method   | Endpoint                                         | Description                   |
+| -------- | ------------------------------------------------ | ----------------------------- |
+| `POST`   | `/workouts/{id}/exercises/{ex_id}/sets`          | Add a set to an exercise      |
+| `GET`    | `/workouts/{id}/exercises/{ex_id}/sets`          | List all sets for an exercise |
+| `GET`    | `/workouts/{id}/exercises/{ex_id}/sets/{set_id}` | Get one set                   |
+| `PATCH`  | `/workouts/{id}/exercises/{ex_id}/sets/{set_id}` | Update set fields             |
+| `DELETE` | `/workouts/{id}/exercises/{ex_id}/sets/{set_id}` | Delete a set                  |
 
 #### POST /workouts/{id}/exercises/{ex_id}/sets
 
@@ -296,11 +299,11 @@ Intensity scale: `1` = very light, `10` = max effort.
 
 ### 4.4 Workout Analytics
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| `GET` | `/workouts/{id}/analytics/summary` | Stats for this workout |
-| `GET` | `/workouts/{id}/analytics/net-calories` | Calories burned vs consumed on that day |
-| `GET` | `/workouts/{id}/analytics/progress/{exercise_name}` | Progress for a named exercise over time |
+| Method | Endpoint                                            | Description                             |
+| ------ | --------------------------------------------------- | --------------------------------------- |
+| `GET`  | `/workouts/{id}/analytics/summary`                  | Stats for this workout                  |
+| `GET`  | `/workouts/{id}/analytics/net-calories`             | Calories burned vs consumed on that day |
+| `GET`  | `/workouts/{id}/analytics/progress/{exercise_name}` | Progress for a named exercise over time |
 
 #### GET /workouts/{id}/analytics/summary — Strength example response
 
@@ -323,8 +326,18 @@ Returns max weight and total volume per session from the beginning of time up to
 
 ```json
 [
-  { "date": "2026-02-01", "max_weight": 70, "total_volume": 2100, "num_sets": 3 },
-  { "date": "2026-03-09", "max_weight": 80, "total_volume": 2400, "num_sets": 3 }
+  {
+    "date": "2026-02-01",
+    "max_weight": 70,
+    "total_volume": 2100,
+    "num_sets": 3
+  },
+  {
+    "date": "2026-03-09",
+    "max_weight": 80,
+    "total_volume": 2400,
+    "num_sets": 3
+  }
 ]
 ```
 
@@ -332,13 +345,13 @@ Returns max weight and total volume per session from the beginning of time up to
 
 These endpoints query the ExerciseDB API on RapidAPI. Requires `EXERCISEDB_API_KEY` in `.env`.
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| `GET` | `/workouts/exercise-search?name=bench` | Search by exercise name |
-| `GET` | `/workouts/exercise-search/body-part/{bp}` | Browse by body part |
-| `GET` | `/workouts/exercise-search/muscle/{m}` | Browse by target muscle |
-| `GET` | `/workouts/exercise-search/equipment/{eq}` | Browse by equipment |
-| `POST` | `/workouts/{id}/exercise-search/save` | Save ExerciseDB exercise to workout |
+| Method | Endpoint                                   | Description                         |
+| ------ | ------------------------------------------ | ----------------------------------- |
+| `GET`  | `/workouts/exercise-search?name=bench`     | Search by exercise name             |
+| `GET`  | `/workouts/exercise-search/body-part/{bp}` | Browse by body part                 |
+| `GET`  | `/workouts/exercise-search/muscle/{m}`     | Browse by target muscle             |
+| `GET`  | `/workouts/exercise-search/equipment/{eq}` | Browse by equipment                 |
+| `POST` | `/workouts/{id}/exercise-search/save`      | Save ExerciseDB exercise to workout |
 
 To save an exercise from ExerciseDB into a workout, pass its ExerciseDB ID:
 
@@ -354,13 +367,13 @@ POST /workouts/101/exercise-search/save
 
 ### 5.1 Meal CRUD
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| `POST` | `/meals/` | Log a meal |
-| `GET` | `/meals/` | List meals (optional date filters) |
-| `GET` | `/meals/{id}` | Get one meal with all food items |
-| `PATCH` | `/meals/{id}` | Update meal_num or calories_in |
-| `DELETE` | `/meals/{id}` | Delete meal and all food items |
+| Method   | Endpoint      | Description                        |
+| -------- | ------------- | ---------------------------------- |
+| `POST`   | `/meals/`     | Log a meal                         |
+| `GET`    | `/meals/`     | List meals (optional date filters) |
+| `GET`    | `/meals/{id}` | Get one meal with all food items   |
+| `PATCH`  | `/meals/{id}` | Update meal_num or calories_in     |
+| `DELETE` | `/meals/{id}` | Delete meal and all food items     |
 
 #### POST /meals/ — Log a Meal
 
@@ -386,13 +399,13 @@ GET /meals/?start_date=2026-03-01&end_date=2026-03-09        # specific range
 
 ### 5.2 Food Items
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| `POST` | `/meals/{id}/food` | Add a food item to a meal |
-| `GET` | `/meals/{id}/food` | List all food items in a meal |
-| `GET` | `/meals/{id}/food/{food_id}` | Get one food item |
-| `PATCH` | `/meals/{id}/food/{food_id}` | Update food name, type, or calories |
-| `DELETE` | `/meals/{id}/food/{food_id}` | Remove a food item |
+| Method   | Endpoint                     | Description                         |
+| -------- | ---------------------------- | ----------------------------------- |
+| `POST`   | `/meals/{id}/food`           | Add a food item to a meal           |
+| `GET`    | `/meals/{id}/food`           | List all food items in a meal       |
+| `GET`    | `/meals/{id}/food/{food_id}` | Get one food item                   |
+| `PATCH`  | `/meals/{id}/food/{food_id}` | Update food name, type, or calories |
+| `DELETE` | `/meals/{id}/food/{food_id}` | Remove a food item                  |
 
 #### POST /meals/{id}/food
 
@@ -406,9 +419,9 @@ GET /meals/?start_date=2026-03-01&end_date=2026-03-09        # specific range
 
 ### 5.3 Meal Analytics
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| `GET` | `/meals/{id}/analytics/summary` | Calories total and breakdown by food type |
+| Method | Endpoint                        | Description                               |
+| ------ | ------------------------------- | ----------------------------------------- |
+| `GET`  | `/meals/{id}/analytics/summary` | Calories total and breakdown by food type |
 
 ```json
 {
@@ -429,12 +442,12 @@ GET /meals/?start_date=2026-03-01&end_date=2026-03-09        # specific range
 
 These endpoints query the Open Food Facts API — no API key required.
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| `GET` | `/meals/food-search?query=oats` | Search by food name |
-| `GET` | `/meals/food-search/barcode/{barcode}` | Look up product by barcode |
-| `POST` | `/meals/{id}/food-search/save-by-barcode` | Scan & log in one call |
-| `POST` | `/meals/{id}/food-search/save-by-name` | Log food from search results |
+| Method | Endpoint                                  | Description                  |
+| ------ | ----------------------------------------- | ---------------------------- |
+| `GET`  | `/meals/food-search?query=oats`           | Search by food name          |
+| `GET`  | `/meals/food-search/barcode/{barcode}`    | Look up product by barcode   |
+| `POST` | `/meals/{id}/food-search/save-by-barcode` | Scan & log in one call       |
+| `POST` | `/meals/{id}/food-search/save-by-name`    | Log food from search results |
 
 #### POST /meals/{id}/food-search/save-by-barcode
 
@@ -464,14 +477,14 @@ Use this after a search — copy the name and calories directly from a search re
 
 ## 6. Error Reference
 
-| Status | Meaning & Fix |
-|--------|---------------|
-| `401` | Invalid or expired token. Refresh the Supabase session and retry. |
-| `400` | Validation error or bad request (e.g. cardio workout missing `distance`). Check the `detail` field in the response body. |
-| `404` | Resource not found. The ID does not exist or does not belong to you. |
-| `422` | Pydantic validation failed. A required field is missing or the format is wrong (e.g. date not `YYYY-MM-DD`). |
-| `502` | Upstream API error (ExerciseDB or Open Food Facts). Check the external service status. |
-| `503` | ExerciseDB could not be initialised — `EXERCISEDB_API_KEY` is missing from `.env`. |
+| Status | Meaning & Fix                                                                                                            |
+| ------ | ------------------------------------------------------------------------------------------------------------------------ |
+| `401`  | Invalid or expired token. Refresh the Supabase session and retry.                                                        |
+| `400`  | Validation error or bad request (e.g. cardio workout missing `distance`). Check the `detail` field in the response body. |
+| `404`  | Resource not found. The ID does not exist or does not belong to you.                                                     |
+| `422`  | Pydantic validation failed. A required field is missing or the format is wrong (e.g. date not `YYYY-MM-DD`).             |
+| `502`  | Upstream API error (ExerciseDB or Open Food Facts). Check the external service status.                                   |
+| `503`  | ExerciseDB could not be initialised — `EXERCISEDB_API_KEY` is missing from `.env`.                                       |
 
 ---
 
