@@ -86,7 +86,9 @@ All endpoints except `POST /users/` require a valid Bearer token.
 
 Handle token refresh with the Supabase client SDK on the frontend — it manages this automatically.
 
----
+```bash
+pip install -r requirements.txt
+```
 
 ## Users
 
@@ -129,7 +131,16 @@ No auth required. Creates both the Supabase auth account and the user profile.
 }
 ```
 
----
+```env
+# Supabase
+SUPABASE_URL=https://your-project-ref.supabase.co
+SUPABASE_ANON_KEY=your-anon-key-here
+SUPABASE_SERVICE_ROLE_KEY=your-service-role-key-here
+
+# ExerciseDB (RapidAPI) — optional
+EXERCISEDB_API_KEY=your-rapidapi-key-here
+EXERCISEDB_API_HOST=exercisedb.p.rapidapi.com
+EXERCISEDB_BASE_URL=https://exercisedb.p.rapidapi.com
 
 ### Get User Profile
 ```
@@ -281,7 +292,7 @@ PATCH /workouts/{workout_id}
 }
 ```
 
----
+### PATCH /users/{user_id} — Update Profile
 
 ### Delete Workout
 ```
@@ -326,7 +337,7 @@ GET /workouts/{workout_id}/exercises/{exercise_id}
 ```
 Returns the exercise with its sets array.
 
----
+#### POST /workouts/ — Log a Cardio Workout
 
 ### Update Exercise
 ```
@@ -374,6 +385,23 @@ POST /workouts/{workout_id}/exercises/{exercise_id}/sets
 ```
 GET /workouts/{workout_id}/exercises/{exercise_id}/sets
 ```
+GET /workouts/                                                # all workouts
+GET /workouts/?start_date=2026-01-01                          # from Jan 1 onwards
+GET /workouts/?end_date=2026-03-09                            # up to today
+GET /workouts/?start_date=2026-01-01&end_date=2026-03-09      # specific range
+```
+
+### 4.2 Exercises
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `POST` | `/workouts/{id}/exercises` | Add an exercise to a strength workout |
+| `GET` | `/workouts/{id}/exercises` | List all exercises for a workout |
+| `GET` | `/workouts/{id}/exercises/{ex_id}` | Get one exercise with its sets |
+| `PATCH` | `/workouts/{id}/exercises/{ex_id}` | Update exercise name or muscle group |
+| `DELETE` | `/workouts/{id}/exercises/{ex_id}` | Delete exercise and all its sets |
+
+#### POST /workouts/{id}/exercises
 
 ---
 
@@ -598,7 +626,7 @@ Takes an ExerciseDB `id` and saves that exercise directly to the workout.
 }
 ```
 
----
+`meal_num` convention: `1` = Breakfast, `2` = Lunch, `3` = Dinner, `4+` = Snacks/Other
 
 ## Food Search (OpenFoodFacts)
 
@@ -669,7 +697,13 @@ Use after searching — user picks a result, you pass the name and calories dire
 }
 ```
 
----
+#### GET /meals/ — List with Optional Date Filters
+
+```
+GET /meals/                                                  # all meals
+GET /meals/?start_date=2026-03-01                            # from March 1
+GET /meals/?start_date=2026-03-01&end_date=2026-03-09        # specific range
+```
 
 ## Groq Chat (FITT AI Assistant)
 
