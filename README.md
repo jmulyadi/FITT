@@ -28,6 +28,13 @@ run
 
 ```bash
 
+docker compose up --build
+```
+
+If image has been built already don't need --build
+
+```bash
+
 docker compose up
 ```
 
