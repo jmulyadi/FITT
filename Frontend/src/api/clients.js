@@ -1,4 +1,3 @@
-//gets the token from auth.js
 import { getToken } from "../auth/auth";
 import { API_BASE } from "../config";
 
@@ -16,6 +15,11 @@ export async function apiFetch(path, options = {}) {
 
   if (!res.ok) {
     throw new Error(`API error ${res.status}`);
+  }
+
+  // 204 No Content has no body — don't try to parse JSON
+  if (res.status === 204 || res.headers.get("content-length") === "0") {
+    return null;
   }
 
   return res.json();

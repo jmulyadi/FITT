@@ -57,6 +57,33 @@ def get_workouts(
     return backend.get_all_workouts(username)
 
 
+
+# ============================================================================
+# EXERCISE SEARCH  (must be before /{workout_id} to avoid route conflict)
+# ============================================================================
+
+@router.get("/exercise-search")
+def search_exercises(
+    name: str = Query(description="Exercise name or partial name, e.g. 'bench', 'curl'"),
+    limit: int = Query(default=10, ge=1, le=50),
+    backend: FitnessBackend = Depends(get_backend)
+):
+    """
+    Search ExerciseDB for exercises by name.
+    Proxies to the ExerciseDB external API.
+    """
+    from ExerciseDBAPImethods import ExerciseDBClient
+    try:
+        client = ExerciseDBClient()
+    except ValueError as e:
+        raise HTTPException(status_code=503, detail=f"ExerciseDB unavailable: {e}")
+    try:
+        results = client.search_by_name(name, limit=limit)
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=f"ExerciseDB error: {e}")
+    return {"count": len(results), "exercises": results}
+
+
 @router.get("/{workout_id}")
 def get_workout(workout_id: int, backend: FitnessBackend = Depends(get_backend)):
     """Returns a single workout with all nested exercises and sets."""
