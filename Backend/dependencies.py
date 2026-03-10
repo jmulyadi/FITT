@@ -1,9 +1,10 @@
-from fastapi import Depends, HTTPException, status
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-from supabase import create_client, Client
-from dotenv import load_dotenv
-from DBhelpermethods import FitnessBackend
 import os
+
+from DBhelpermethods import FitnessBackend
+from dotenv import load_dotenv
+from fastapi import Depends, HTTPException, status
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from supabase import Client, create_client
 
 load_dotenv()
 
@@ -30,7 +31,7 @@ def get_authenticated_client(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Invalid or expired token.",
             )
-        client.auth.set_session(token, "")
+        client.auth.postgrest.auth(token)
     except Exception:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -51,3 +52,4 @@ def get_admin_client() -> Client:
     """Returns a Supabase admin client for privileged operations."""
     SUPABASE_SERVICE_ROLE_KEY = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
     return create_client(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
+
