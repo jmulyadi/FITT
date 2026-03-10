@@ -53,6 +53,7 @@ EXERCISEDB_BASE_URL=https://exercisedb.p.rapidapi.com
 
 GROQ_API_KEY=your_groq_api_key
 ```
+
 Get a free Groq API key at **https://console.groq.com**
 
 > ⚠️ **Never commit `.env` to version control.** Add it to your `.gitignore`.
