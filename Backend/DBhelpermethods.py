@@ -227,7 +227,7 @@ class FitnessBackend:
             List of workouts ordered by date (most recent first)
         """
         response = self.supabase.table("workout") \
-            .select("*, cardio(workout_id), strength(workout_id)") \
+            .select('*, exercise(*, "SET"(*))') \
             .eq("username", username) \
             .gte("date", start_date) \
             .lte("date", end_date) \

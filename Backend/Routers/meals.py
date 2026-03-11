@@ -231,3 +231,32 @@ def get_food_by_barcode(barcode: str):
     if result.get("status") != 1:
         raise HTTPException(status_code=404, detail=f"No product found with barcode '{barcode}'.")
     return _format_product(result.get("product", {}))
+
+# ============================================================================
+# GLOBAL NUTRITION ANALYTICS  — date-range queries
+# ============================================================================
+
+@router.get("/analytics/summary")
+def get_global_nutrition_summary(
+    start_date: str = Query(description="Start date YYYY-MM-DD"),
+    end_date: str = Query(description="End date YYYY-MM-DD"),
+    backend: FitnessBackend = Depends(get_backend)
+):
+    """
+    Nutrition summary across a date range.
+    Returns total meals, total calories, avg per day and per meal.
+    """
+    username = backend.get_username_from_session()
+    return backend.get_nutrition_summary(username, start_date, end_date)
+
+
+@router.get("/analytics/calories-consumed")
+def get_total_calories_consumed(
+    start_date: str = Query(description="Start date YYYY-MM-DD"),
+    end_date: str = Query(description="End date YYYY-MM-DD"),
+    backend: FitnessBackend = Depends(get_backend)
+):
+    """Total calories consumed across all meals in a date range."""
+    username = backend.get_username_from_session()
+    total = backend.get_total_calories_consumed(username, start_date, end_date)
+    return {"total_calories_consumed": total, "start_date": start_date, "end_date": end_date}

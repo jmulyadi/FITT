@@ -302,3 +302,64 @@ def delete_set(workout_id: int, exercise_id: int, set_id: int, backend: FitnessB
         backend.delete_set(set_id)
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+
+# ============================================================================
+# GLOBAL ANALYTICS  — date-range queries (must be registered BEFORE /{workout_id})
+# These power the Dashboard summary cards
+# ============================================================================
+
+@router.get("/analytics/summary")
+def get_global_workout_summary(
+    start_date: str = Query(description="Start date YYYY-MM-DD"),
+    end_date: str = Query(description="End date YYYY-MM-DD"),
+    backend: FitnessBackend = Depends(get_backend)
+):
+    """
+    Workout summary across a date range.
+    Returns total workouts, calories burned, duration, cardio/strength counts.
+    """
+    username = backend.get_username_from_session()
+    return backend.get_workout_summary(username, start_date, end_date)
+
+
+@router.get("/analytics/calories-burned")
+def get_total_calories_burned(
+    start_date: str = Query(description="Start date YYYY-MM-DD"),
+    end_date: str = Query(description="End date YYYY-MM-DD"),
+    backend: FitnessBackend = Depends(get_backend)
+):
+    """Total calories burned across all workouts in a date range."""
+    username = backend.get_username_from_session()
+    total = backend.get_total_calories_burned(username, start_date, end_date)
+    return {"total_calories_burned": total, "start_date": start_date, "end_date": end_date}
+
+
+@router.get("/analytics/average-duration")
+def get_average_duration(
+    start_date: str = Query(description="Start date YYYY-MM-DD"),
+    end_date: str = Query(description="End date YYYY-MM-DD"),
+    backend: FitnessBackend = Depends(get_backend)
+):
+    """Average workout duration (minutes) across a date range."""
+    username = backend.get_username_from_session()
+    avg = backend.get_average_workout_duration(username, start_date, end_date)
+    return {"average_duration_minutes": avg, "start_date": start_date, "end_date": end_date}
+
+
+@router.get("/analytics/progress/{exercise_name}")
+def get_global_exercise_progress(
+    exercise_name: str,
+    start_date: str = Query(description="Start date YYYY-MM-DD"),
+    end_date: str = Query(description="End date YYYY-MM-DD"),
+    backend: FitnessBackend = Depends(get_backend)
+):
+    """Progress for a named exercise over a date range (max weight + volume per session)."""
+    username = backend.get_username_from_session()
+    return backend.get_exercise_progress(username, exercise_name, start_date, end_date)
+
+
+@router.get("/analytics/net-calories/{date_string}")
+def get_net_calories_by_date(date_string: str, backend: FitnessBackend = Depends(get_backend)):
+    """Net calories (consumed - burned) for a specific date."""
+    username = backend.get_username_from_session()
+    return backend.get_net_calories(username, date_string)

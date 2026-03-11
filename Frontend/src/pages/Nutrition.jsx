@@ -4,7 +4,7 @@
 import { useState, useEffect, useMemo, useRef } from 'react'
 import AICard from '../components/AICard'
 import {
-  getTodaysMeals, getMealsByDate, createMeal, updateMealCalories,
+  getMealsByDate, createMeal, updateMealCalories,
   deleteMeal, addFoodToMeal, updateFoodItem, deleteFoodItem, searchFood
 } from '../api/nutrition'
 

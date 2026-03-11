@@ -61,7 +61,7 @@ def create_user(body: SignUpRequest):
 
 @router.get("/{user_id}")
 def get_user(user_id: str, backend: FitnessBackend = Depends(get_backend)):
-    """Returns the profile for the given user_id."""
+    """Returns the profile for the given Supabase auth UUID."""
     try:
         return backend.get_user_by_id(user_id)
     except ValueError as e:
@@ -74,7 +74,7 @@ def update_user(
     body: UpdateProfileRequest,
     backend: FitnessBackend = Depends(get_backend)
 ):
-    """Updates allowed profile fields for the given user_id."""
+    """Updates allowed profile fields for the given Supabase auth UUID."""
     updates = body.model_dump(exclude_none=True)
     if not updates:
         raise HTTPException(
@@ -82,7 +82,10 @@ def update_user(
             detail="No fields provided for update."
         )
     try:
-        return backend.update_user_profile(user_id, **updates)
+        # Look up username from UUID, then update by username
+        profile = backend.get_user_by_id(user_id)
+        username = profile["username"]
+        return backend.update_user_profile(username, **updates)
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
 

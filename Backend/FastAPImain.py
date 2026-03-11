@@ -17,7 +17,7 @@ if not SUPABASE_URL or not SUPABASE_ANON_KEY or not SUPABASE_SERVICE_ROLE_KEY:
 
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 if not GROQ_API_KEY:
-   raise RuntimeError("GROQ_API_KEY must be set in .env")
+    raise RuntimeError("GROQ_API_KEY must be set in .env")
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -44,7 +44,7 @@ app.add_middleware(
 app.include_router(users.router,    prefix="/users",    tags=["Users"])
 app.include_router(workouts.router, prefix="/workouts", tags=["Workouts"])
 app.include_router(meals.router,    prefix="/meals",    tags=["Meals"])
-app.include_router(groq.router,        prefix="/groq",        tags=["Groq"])
+app.include_router(groq.router,     prefix="/groq",     tags=["Groq"])
 
 @app.get("/", tags=["Health"])
 def root():
