@@ -11,18 +11,18 @@ class OpenFoodFactsClient:
             app_name: Your application name (sent in User-Agent header as good practice)
             app_version: Your application version
         """
-        self.base_url = "https://world.openfoodfacts.org"
+        self.base_url = "https://us.openfoodfacts.org"
         self.api_v2 = f"{self.base_url}/api/v2"
 
         # Set User-Agent as recommended by Open Food Facts
-        self.user_agent = f"{app_name}/{app_version} (Python client)"
+        self.user_agent = f"{app_name}/{app_version} (https://github.com/m-adams8/FITT)"
         self.headers = {
             "User-Agent": self.user_agent,
             "Accept": "application/json"
         }
 
     # Shared timeout for all requests (seconds)
-    _TIMEOUT = 10
+    _TIMEOUT = 60
 
     def _get(self, url: str, params: dict = None):
         """
@@ -112,33 +112,12 @@ class OpenFoodFactsClient:
         sort_by: Optional[str] = None
     ) -> Dict[str, Any]:
         """
-        Search for products using various filters.
-
-        Args:
-            query: Full-text search string (e.g., "chocolate").
-            categories_tags_en: Filter by category (e.g., "Orange juices")
-            nutrition_grades_tags: Filter by Nutri-Score grade ("a", "b", "c", "d", or "e")
-            labels_tags_en: Filter by label (e.g., "organic", "fair-trade")
-            brands_tags: Filter by brand slug (e.g., "nestle", "kelloggs")
-            countries_tags_en: Filter by country (e.g., "United States")
-            nova_groups_tags: Filter by NOVA group ("1", "2", "3", or "4")
-            fields: List of fields to include in each product result
-            page: Page number (default: 1)
-            page_size: Results per page (default: 24, max: 1000)
-            sort_by: Sort order. Options:
-                     "unique_scans_n" (popularity), "product_name",
-                     "created_t" (newest), "last_modified_t" (recently updated)
-
-        Returns:
-            Dictionary containing:
-            - count: Total number of matching products
-            - page: Current page number
-            - page_count: Number of pages
-            - page_size: Results per page
-            - products: List of product dictionaries (fields depend on `fields` param)
+        Search for products. When a query string is provided, uses the legacy
+        cgi/search.pl endpoint which correctly performs full-text search.
+        Without a query, uses the v2 API for filtered browsing.
         """
         if query:
-            # Full-text search requires v1 endpoint
+            # cgi/search.pl is the only endpoint that reliably does text search
             url = f"{self.base_url}/cgi/search.pl"
             params: Dict[str, Any] = {
                 "search_terms": query,
@@ -146,29 +125,35 @@ class OpenFoodFactsClient:
                 "json": 1,
                 "page": page,
                 "page_size": page_size,
+                "lc": "en",
             }
+            if fields:
+                params["fields"] = ",".join(fields)
+            return self._get(url, params)
         else:
+            # v2 is fine for browse/filter without a text query
             url = f"{self.api_v2}/search"
-            params = {"page": page, "page_size": page_size}
-
-        if categories_tags_en:
-            params["categories_tags_en"] = categories_tags_en
-        if nutrition_grades_tags:
-            params["nutrition_grades_tags"] = nutrition_grades_tags
-        if labels_tags_en:
-            params["labels_tags_en"] = labels_tags_en
-        if brands_tags:
-            params["brands_tags"] = brands_tags
-        if countries_tags_en:
-            params["countries_tags_en"] = countries_tags_en
-        if nova_groups_tags:
-            params["nova_groups_tags"] = nova_groups_tags
-        if fields:
-            params["fields"] = ",".join(fields)
-        if sort_by:
-            params["sort_by"] = sort_by
-
-        return self._get(url, params)
+            params = {
+                "page": page,
+                "page_size": page_size,
+                "json": 1,
+                "lc": "en",
+            }
+            if sort_by:
+                params["sort_by"] = sort_by
+            if categories_tags_en:
+                params["categories_tags_en"] = categories_tags_en
+            if nutrition_grades_tags:
+                params["nutrition_grades_tags"] = nutrition_grades_tags
+            if labels_tags_en:
+                params["labels_tags_en"] = labels_tags_en
+            if brands_tags:
+                params["brands_tags"] = brands_tags
+            if nova_groups_tags:
+                params["nova_groups_tags"] = nova_groups_tags
+            if fields:
+                params["fields"] = ",".join(fields)
+            return self._get(url, params)
 
     def get_products_by_category(
         self,

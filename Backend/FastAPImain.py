@@ -1,10 +1,10 @@
-import os
-from contextlib import asynccontextmanager
-
-from dotenv import load_dotenv
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from Routers import groq, meals, users, workouts
+from contextlib import asynccontextmanager
+from dotenv import load_dotenv
+import os
+
+from Routers import users, workouts, meals, groq
 
 load_dotenv()
 
@@ -13,14 +13,11 @@ SUPABASE_ANON_KEY = os.getenv("SUPABASE_ANON_KEY")
 SUPABASE_SERVICE_ROLE_KEY = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
 
 if not SUPABASE_URL or not SUPABASE_ANON_KEY or not SUPABASE_SERVICE_ROLE_KEY:
-    raise RuntimeError(
-        "SUPABASE_URL, SUPABASE_ANON_KEY, and SUPABASE_SERVICE_ROLE_KEY must be set in .env"
-    )
+    raise RuntimeError("SUPABASE_URL, SUPABASE_ANON_KEY, and SUPABASE_SERVICE_ROLE_KEY must be set in .env")
 
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 if not GROQ_API_KEY:
     raise RuntimeError("GROQ_API_KEY must be set in .env")
-
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -44,13 +41,11 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-app.include_router(users.router, prefix="/users", tags=["Users"])
+app.include_router(users.router,    prefix="/users",    tags=["Users"])
 app.include_router(workouts.router, prefix="/workouts", tags=["Workouts"])
-app.include_router(meals.router, prefix="/meals", tags=["Meals"])
-app.include_router(groq.router, prefix="/groq", tags=["Groq"])
-
+app.include_router(meals.router,    prefix="/meals",    tags=["Meals"])
+app.include_router(groq.router,     prefix="/groq",     tags=["Groq"])
 
 @app.get("/", tags=["Health"])
 def root():
     return {"status": "ok", "message": "FITT API is running"}
-
