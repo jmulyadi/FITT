@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, HTTPException, Depends, UploadFile, File
 from groq import Groq
 from pydantic import BaseModel
 from dependencies import get_backend
@@ -17,6 +17,30 @@ class Message(BaseModel):
 class ChatRequest(BaseModel):
     messages: list[Message]
 
+@router.post("/transcribe", tags=["Groq"])
+async def transcribe_audio(file: UploadFile = File(...)):
+    """
+    Transcribe audio to text using Groq Whisper
+    Frontend records audio, sends it here, and gets a text back,
+    which is passed as a user message to /groq/chat endpoint for processing.
+    Supported formats: .wav, .mp3, .mp4, .mpeg, .m4a, .mpga, .webm.
+    """
+    if not GROQ_API_KEY:
+        raise HTTPException(status_code=500, detail="Groq API key is not configured")
+    try:
+        client = Groq(api_key=GROQ_API_KEY)
+        # Read file content
+        audio_bytes = await file.read()
+        # Create transcription
+        transcription = client.audio.transcriptions.create(
+            file=(file.filename, audio_bytes, file.content_type),
+            model="whisper-large-v3", # Free tier model on Groq
+            language="en",
+            response_format="text"
+        )
+        return {"transcription": transcription}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error during transcription: {str(e)}")
 
 def build_user_context(user_profile: dict, workouts: list, meals: list) -> str:
     """
