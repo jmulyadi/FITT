@@ -22,13 +22,29 @@ def create_user(body: SignUpRequest):
     Register a new user. Creates Supabase auth account and profile row.
     Returns user_id, username, and email.
     """
-    client = create_client(SUPABASE_URL, SUPABASE_ANON_KEY)
-    admin_client = create_client(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
+    try:
+        client = create_client(SUPABASE_URL, SUPABASE_ANON_KEY)
+        admin_client = create_client(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
+    except Exception as e:
+        print(f"Supabase client initialization failed: {e}")
+        traceback.print_exc()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Supabase client initialization failed: {e}"
+        )
 
-    auth_response = client.auth.sign_up({
-        "email": body.email,
-        "password": body.password
-    })
+    try:
+        auth_response = client.auth.sign_up({
+            "email": str(body.email),
+            "password": body.password
+        })
+    except Exception as e:
+        print(f"Supabase auth sign_up failed for email={body.email}: {e}")
+        traceback.print_exc()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Supabase auth sign_up failed: {e}"
+        )
 
     if not auth_response.user:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Sign up failed.")
