@@ -3,8 +3,9 @@
 // ─────────────────────────────────────────────────────────────────────────────
 import { useState, useRef, useEffect } from "react";
 import { apiFetch } from "../api/clients";
+import { API_BASE } from "../config";
 import { suggestedChips } from "../data/mockData";
-const API_BASE = import.meta.env.VITE_API_BASE;
+
 function now() {
   return new Date().toLocaleTimeString([], {
     hour: "2-digit",
