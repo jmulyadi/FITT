@@ -1,8 +1,10 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from contextlib import asynccontextmanager
 from dotenv import load_dotenv
 import os
+import traceback
 
 from Routers import users, workouts, meals, groq
 
@@ -66,6 +68,17 @@ app.include_router(users.router,    prefix="/users",    tags=["Users"])
 app.include_router(workouts.router, prefix="/workouts", tags=["Workouts"])
 app.include_router(meals.router,    prefix="/meals",    tags=["Meals"])
 app.include_router(groq.router,     prefix="/groq",     tags=["Groq"])
+
+
+@app.exception_handler(Exception)
+async def unhandled_exception_handler(request: Request, exc: Exception):
+    print(f"Unhandled error on {request.method} {request.url.path}: {exc}")
+    traceback.print_exc()
+    return JSONResponse(
+        status_code=500,
+        content={"detail": f"Unhandled server error: {exc}"},
+    )
+
 
 @app.get("/", tags=["Health"])
 def root():
