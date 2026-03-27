@@ -5,6 +5,7 @@ from dependencies import get_backend, get_authenticated_client
 from schemas import SignUpRequest, UpdateProfileRequest
 from DBhelpermethods import FitnessBackend
 import os
+import traceback
 
 load_dotenv()
 
@@ -50,10 +51,24 @@ def create_user(body: SignUpRequest):
         if not response.data:
             raise RuntimeError("Profile insert returned no data.")
     except Exception as e:
-        admin_client.auth.admin.delete_user(user_id)
+        print(f"Profile insert failed for user_id={user_id}: {e}")
+        traceback.print_exc()
+
+        rollback_error = None
+        try:
+            admin_client.auth.admin.delete_user(user_id)
+        except Exception as delete_error:
+            rollback_error = delete_error
+            print(f"Rollback delete failed for user_id={user_id}: {delete_error}")
+            traceback.print_exc()
+
+        detail = f"Sign up failed during profile creation: {e}"
+        if rollback_error:
+            detail += f" | rollback failed: {rollback_error}"
+
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Sign up failed during profile creation: {e}"
+            detail=detail
         )
 
     return {"user_id": user_id, "username": body.username, "email": body.email}
