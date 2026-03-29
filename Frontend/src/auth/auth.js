@@ -12,12 +12,10 @@ export async function login(email, password) {
   const token = data.session.access_token;
   localStorage.setItem("access_token", token);
 
-  // Call our backend signin to get the username, then store it
+  // Fetch username from backend using the user's UUID
   try {
-    const res = await fetch(`${API_BASE}/auth/signin`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email, password }),
+    const res = await fetch(`${API_BASE}/users/${data.user.id}`, {
+      headers: { Authorization: `Bearer ${token}` },
     });
     if (res.ok) {
       const profile = await res.json();
