@@ -179,11 +179,13 @@ async def groq_chat(
         # Create enhanced system prompt with user context
         system_prompt = f"""You are FITT, a helpful fitness and nutrition assistant. Help users with workout plans, exercise advice, and meal guidance.
 
+RESPONSE FORMAT: Keep responses to 2 paragraphs maximum for direct advice. Only use longer responses when providing lists (workout plans, meal options, exercise sets, etc.). Be concise and mobile-friendly.
+
 Use the following user data to provide personalized, contextual, and concise recommendations:
 
 {user_context}
 
-Based on this user's profile and recent activity, provide tailored advice that considers their fitness level, recent workouts, nutrition patterns, and personal goals."""
+Based on this user's profile and recent activity, provide tailored advice that considers their fitness level, recent workouts, nutrition patterns, and personal goals. Prioritize brevity and clarity."""
 
         client = Groq(api_key=GROQ_API_KEY)
 
@@ -204,4 +206,125 @@ Based on this user's profile and recent activity, provide tailored advice that c
         raise HTTPException(
             status_code=500, detail=f"Error interacting with Groq: {str(e)}"
         )
+
+
+# ============================================================================
+# CHAT MANAGEMENT ENDPOINTS
+# ============================================================================
+
+@router.post("/chats", tags=["Groq"])
+async def create_new_chat(backend: FitnessBackend = Depends(get_backend)):
+    """Create a new chat conversation for the current user."""
+    try:
+        chat = backend.create_chat()
+        return {"id": chat["id"], "title": chat["title"], "created_at": chat["created_at"]}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error creating chat: {str(e)}")
+
+
+@router.get("/chats", tags=["Groq"])
+async def get_user_chats(backend: FitnessBackend = Depends(get_backend)):
+    """Get all chats for the current user."""
+    try:
+        chats = backend.get_chats()
+        return {"chats": chats}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error retrieving chats: {str(e)}")
+
+
+@router.get("/chats/{chat_id}", tags=["Groq"])
+async def get_chat_history(chat_id: str, backend: FitnessBackend = Depends(get_backend)):
+    """Get all messages from a specific chat."""
+    try:
+        messages = backend.get_chat_messages(chat_id)
+        return {"messages": messages}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error retrieving chat history: {str(e)}")
+
+
+@router.post("/chats/{chat_id}/messages", tags=["Groq"])
+async def send_chat_message(
+    chat_id: str,
+    request: ChatRequest,
+    backend: FitnessBackend = Depends(get_backend),
+):
+    """Send a message to a chat, get AI response, and save both to database."""
+    if not GROQ_API_KEY:
+        raise HTTPException(status_code=500, detail="Groq API key is not configured")
+
+    try:
+        # Save user message to database
+        backend.add_message_to_chat(
+            chat_id, 
+            "user", 
+            request.messages[-1].content
+        )
+
+        # Get user information for context
+        username = backend.get_username_from_session()
+        user_profile = backend.get_user(username)
+
+        # Calculate date range (last 7 days)
+        today = datetime.now().date()
+        seven_days_ago = today - timedelta(days=7)
+
+        # Fetch recent data
+        recent_workouts = backend.get_workouts_in_range(
+            start_date=seven_days_ago.isoformat(), end_date=today.isoformat()
+        )
+
+        recent_meals = backend.get_meals_in_range(
+            start_date=seven_days_ago.isoformat(), end_date=today.isoformat()
+        )
+
+        # Build context string
+        user_context = build_user_context(user_profile, recent_workouts, recent_meals)
+
+        # Create enhanced system prompt
+        system_prompt = f"""You are FITT, a helpful fitness and nutrition assistant. Help users with workout plans, exercise advice, and meal guidance.
+
+RESPONSE FORMAT: Keep responses to 3-4 lines maximum for direct advice. Only use longer responses when providing lists (workout plans, meal options, exercise sets, etc.). Be concise and mobile-friendly.
+
+Use the following user data to provide personalized, contextual, and concise recommendations:
+
+{user_context}
+
+Based on this user's profile and recent activity, provide tailored advice that considers their fitness level, recent workouts, nutrition patterns, and personal goals. Prioritize brevity and clarity."""
+
+        client = Groq(api_key=GROQ_API_KEY)
+
+        # Build conversation history from database messages
+        full_messages = [{"role": "system", "content": system_prompt}] + [
+            {"role": m.role, "content": m.content} for m in request.messages
+        ]
+
+        chat_completion = client.chat.completions.create(
+            messages=full_messages,
+            model="llama-3.3-70b-versatile",
+        )
+
+        response_text = chat_completion.choices[0].message.content
+        
+        # Save AI response to database
+        backend.add_message_to_chat(chat_id, "assistant", response_text)
+
+        return {
+            "response": response_text,
+            "message_id": None  # Could be populated if we return the message ID
+        }
+
+    except Exception as e:
+        raise HTTPException(
+            status_code=500, detail=f"Error processing message: {str(e)}"
+        )
+
+
+@router.delete("/chats/{chat_id}", tags=["Groq"])
+async def delete_chat(chat_id: str, backend: FitnessBackend = Depends(get_backend)):
+    """Delete a chat conversation."""
+    try:
+        backend.delete_chat(chat_id)
+        return {"status": "deleted"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error deleting chat: {str(e)}")
 

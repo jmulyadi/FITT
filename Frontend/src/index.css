@@ -979,3 +979,57 @@ body {
   margin-bottom: 10px;
   text-align: center;
 }
+
+/* ── Markdown in Chat ── */
+.msg-bubble p {
+  margin: 0;
+}
+
+.msg-bubble strong {
+  font-weight: 700;
+}
+
+.msg-bubble ul,
+.msg-bubble ol {
+  margin: 4px 0;
+  padding-left: 20px;
+}
+
+.msg-bubble li {
+  margin: 2px 0;
+}
+
+.msg-bubble code {
+  background: rgba(0, 0, 0, 0.2);
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-family: "Courier New", monospace;
+  font-size: 12px;
+}
+
+.msg-bubble pre {
+  background: rgba(0, 0, 0, 0.3);
+  padding: 8px 10px;
+  border-radius: 6px;
+  overflow-x: auto;
+  margin: 4px 0;
+  font-size: 12px;
+}
+
+.msg-bubble pre code {
+  background: none;
+  padding: 0;
+}
+
+.msg-bubble em {
+  font-style: italic;
+}
+
+.msg-bubble a {
+  color: var(--accent);
+  text-decoration: none;
+}
+
+.msg-bubble a:hover {
+  text-decoration: underline;
+}
