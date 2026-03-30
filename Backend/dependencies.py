@@ -1,60 +1,57 @@
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from supabase import create_client, Client
+from dotenv import load_dotenv
 from DBhelpermethods import FitnessBackend
 import os
+
+load_dotenv()
+
+SUPABASE_URL = os.getenv("SUPABASE_URL")
+SUPABASE_ANON_KEY = os.getenv("SUPABASE_ANON_KEY")
+SUPABASE_SERVICE_ROLE_KEY = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
 
 bearer_scheme = HTTPBearer()
 
 
 def get_authenticated_client(
     credentials: HTTPAuthorizationCredentials = Depends(bearer_scheme),
-) -> tuple[Client, str]:
+) -> Client:
     """
-    Validates the Bearer token and returns (client, user_id).
-    The client has the token applied to both auth session and postgrest.
+    Validates the Bearer JWT from the Authorization header.
+    Returns a Supabase client with the user's session active.
+    Raises 401 if the token is missing, invalid, or expired.
     """
     token = credentials.credentials
-    url = os.getenv("SUPABASE_URL")
-    anon_key = os.getenv("SUPABASE_ANON_KEY")
 
-    client: Client = create_client(url, anon_key)
+    client: Client = create_client(SUPABASE_URL, SUPABASE_ANON_KEY)
 
     try:
+        # Verify the token is valid and get user info
         user_response = client.auth.get_user(token)
-
         if not user_response or not user_response.user:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Invalid or expired token.",
             )
-
-        user_id = user_response.user.id
-
-        # Set auth session so RLS policies see auth.uid() correctly
-        client.auth.set_session(token, token)
-        # Also apply directly to postgrest as belt-and-suspenders
-        client.postgrest.auth(token)
-
-    except HTTPException:
-        raise
+        # Set the session so all subsequent DB calls respect RLS
+        client.auth.set_session(token, "")
     except Exception:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid or expired token.",
         )
 
-    return client, user_id
+    return client
 
 
 def get_backend(
-    auth: tuple = Depends(get_authenticated_client),
+    client: Client = Depends(get_authenticated_client),
 ) -> FitnessBackend:
-    client, user_id = auth
-    return FitnessBackend(client, user_id)
+    """Returns an authenticated FitnessBackend for the current request."""
+    return FitnessBackend(client)
 
 
 def get_admin_client() -> Client:
-    url = os.getenv("SUPABASE_URL")
-    service_key = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
-    return create_client(url, service_key)
+    """Returns a Supabase admin client for privileged operations (e.g. delete account)."""
+    return create_client(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)

@@ -6,54 +6,57 @@ from DBhelpermethods import FitnessBackend
 
 router = APIRouter()
 
-
 # ============================================================================
 # MEALS
 # ============================================================================
 
 @router.post("/", status_code=status.HTTP_201_CREATED)
 def add_meal(body: MealCreate, backend: FitnessBackend = Depends(get_backend)):
-    """Logs a meal. Returns the new meal_id."""
-    username = backend.get_username_from_session()
-    meal_id = backend.add_meal(username, body.date, body.meal_num, body.calories_in)
+    meal_id = backend.add_meal(body.date, body.meal_num, body.calories_in)
     return {"meal_id": meal_id}
 
 
 @router.get("/date/{date_string}")
 def get_meals_by_date(date_string: str, backend: FitnessBackend = Depends(get_backend)):
-    """Returns all meals and food items for a specific date (YYYY-MM-DD)."""
-    username = backend.get_username_from_session()
-    return backend.get_daily_meals(username, date_string)
+    return backend.get_daily_meals(date_string)
 
 
 @router.get("/")
 def get_meals(
-    start_date: Optional[str] = Query(default=None, description="Filter from this date YYYY-MM-DD"),
-    end_date: Optional[str] = Query(default=None, description="Filter to this date YYYY-MM-DD"),
+    start_date: Optional[str] = Query(default=None),
+    end_date: Optional[str] = Query(default=None),
     backend: FitnessBackend = Depends(get_backend)
 ):
-    """
-    Returns meals for the current user with all food items nested.
-    Optionally filter by date range using start_date and/or end_date query params.
-    - No params: all meals
-    - start_date only: all meals on or after that date
-    - end_date only: all meals on or before that date
-    - both: meals between the two dates (inclusive)
-    """
-    username = backend.get_username_from_session()
     if start_date and end_date:
-        return backend.get_meals_in_range(username, start_date, end_date)
+        return backend.get_meals_in_range(start_date, end_date)
     if start_date:
-        return backend.get_meals_in_range(username, start_date, "2100-01-01")
+        return backend.get_meals_in_range(start_date, "2100-01-01")
     if end_date:
-        return backend.get_meals_in_range(username, "2000-01-01", end_date)
-    return backend.get_meals_in_range(username, "2000-01-01", "2100-01-01")
+        return backend.get_meals_in_range("2000-01-01", end_date)
+    return backend.get_meals_in_range("2000-01-01", "2100-01-01")
 
+
+@router.get("/analytics/summary")
+def get_global_nutrition_summary(
+    start_date: str = Query(description="Start date YYYY-MM-DD"),
+    end_date: str = Query(description="End date YYYY-MM-DD"),
+    backend: FitnessBackend = Depends(get_backend)
+):
+    return backend.get_nutrition_summary(start_date, end_date)
+
+
+@router.get("/analytics/calories-consumed")
+def get_total_calories_consumed(
+    start_date: str = Query(description="Start date YYYY-MM-DD"),
+    end_date: str = Query(description="End date YYYY-MM-DD"),
+    backend: FitnessBackend = Depends(get_backend)
+):
+    total = backend.get_total_calories_consumed(start_date, end_date)
+    return {"total_calories_consumed": total, "start_date": start_date, "end_date": end_date}
 
 
 @router.get("/{meal_id}")
 def get_meal(meal_id: int, backend: FitnessBackend = Depends(get_backend)):
-    """Returns a single meal with all its food items."""
     try:
         return backend.get_meal_by_id(meal_id)
     except ValueError as e:
@@ -62,10 +65,9 @@ def get_meal(meal_id: int, backend: FitnessBackend = Depends(get_backend)):
 
 @router.patch("/{meal_id}")
 def update_meal(meal_id: int, body: MealUpdate, backend: FitnessBackend = Depends(get_backend)):
-    """Updates meal_num or calories_in."""
     updates = body.model_dump(exclude_none=True)
     if not updates:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="No fields provided for update.")
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="No fields provided.")
     try:
         return backend.update_meal(meal_id, **updates)
     except ValueError as e:
@@ -74,7 +76,6 @@ def update_meal(meal_id: int, body: MealUpdate, backend: FitnessBackend = Depend
 
 @router.delete("/{meal_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_meal(meal_id: int, backend: FitnessBackend = Depends(get_backend)):
-    """Deletes a meal and all its food items."""
     try:
         backend.delete_meal(meal_id)
     except ValueError as e:
@@ -82,33 +83,27 @@ def delete_meal(meal_id: int, backend: FitnessBackend = Depends(get_backend)):
 
 
 # ============================================================================
-# ANALYTICS — scoped to a specific meal
+# MEAL ANALYTICS
 # ============================================================================
 
 @router.get("/{meal_id}/analytics/summary")
 def get_meal_summary(meal_id: int, backend: FitnessBackend = Depends(get_backend)):
-    """
-    Summary for a specific meal: total calories, number of food items,
-    and a breakdown by food type.
-    """
     try:
         meal = backend.get_meal_by_id(meal_id)
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
-
     foods = meal.get("food", [])
     type_breakdown = {}
     for food in foods:
         food_type = food.get("type", "Other")
         type_breakdown[food_type] = type_breakdown.get(food_type, 0) + food.get("calories", 0)
-
     return {
         "meal_id": meal_id,
         "date": meal.get("date"),
         "meal_num": meal.get("meal_num"),
         "total_calories": meal.get("calories_in"),
         "total_food_items": len(foods),
-        "calories_by_type": type_breakdown
+        "calories_by_type": type_breakdown,
     }
 
 
@@ -118,7 +113,6 @@ def get_meal_summary(meal_id: int, backend: FitnessBackend = Depends(get_backend
 
 @router.post("/{meal_id}/food", status_code=status.HTTP_201_CREATED)
 def add_food(meal_id: int, body: FoodCreate, backend: FitnessBackend = Depends(get_backend)):
-    """Adds a food item to a meal."""
     try:
         return backend.add_food_to_meal(meal_id, body.name, body.food_type, body.calories)
     except Exception as e:
@@ -127,13 +121,11 @@ def add_food(meal_id: int, body: FoodCreate, backend: FitnessBackend = Depends(g
 
 @router.get("/{meal_id}/food")
 def get_food_by_meal(meal_id: int, backend: FitnessBackend = Depends(get_backend)):
-    """Returns all food items for a meal."""
     return backend.get_foods_by_meal(meal_id)
 
 
 @router.get("/{meal_id}/food/{food_id}")
 def get_food(meal_id: int, food_id: int, backend: FitnessBackend = Depends(get_backend)):
-    """Returns a single food item."""
     try:
         return backend.get_food_by_id(food_id)
     except ValueError as e:
@@ -142,10 +134,9 @@ def get_food(meal_id: int, food_id: int, backend: FitnessBackend = Depends(get_b
 
 @router.patch("/{meal_id}/food/{food_id}")
 def update_food(meal_id: int, food_id: int, body: FoodUpdate, backend: FitnessBackend = Depends(get_backend)):
-    """Updates name, food_type, or calories for a food item."""
     updates = body.model_dump(exclude_none=True)
     if not updates:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="No fields provided for update.")
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="No fields provided.")
     try:
         return backend.update_food(food_id, **updates)
     except ValueError as e:
@@ -154,14 +145,14 @@ def update_food(meal_id: int, food_id: int, body: FoodUpdate, backend: FitnessBa
 
 @router.delete("/{meal_id}/food/{food_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_food(meal_id: int, food_id: int, backend: FitnessBackend = Depends(get_backend)):
-    """Removes a food item from a meal."""
     try:
         backend.delete_food_item(food_id)
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
 
+
 # ============================================================================
-# FOOD SEARCH (OpenFoodFacts) — no auth needed, read-only external API
+# FOOD SEARCH (OpenFoodFacts)
 # ============================================================================
 
 import re as _re
@@ -203,7 +194,6 @@ def search_food(
     page: int = Query(default=1, ge=1),
     page_size: int = Query(default=15, ge=1, le=50),
 ):
-    """Search OpenFoodFacts by food name."""
     try:
         result = _off_client().search_products(
             query=query, page=page, page_size=page_size,
@@ -211,8 +201,6 @@ def search_food(
                     "brands","serving_size","nutrition_grades","nutriments","image_front_url"]
         )
     except Exception as e:
-        import traceback
-        traceback.print_exc()
         raise HTTPException(status_code=502, detail=f"OpenFoodFacts error: {e}")
     products = [_format_product(p) for p in result.get("products", [])]
     return {"count": result.get("count", len(products)), "page": page, "products": products}
@@ -220,7 +208,6 @@ def search_food(
 
 @router.get("/food-search/barcode/{barcode}")
 def get_food_by_barcode(barcode: str):
-    """Look up a product by barcode."""
     try:
         result = _off_client().get_product_by_barcode(barcode, fields=[
             "code","product_name","brands","serving_size",
@@ -231,32 +218,3 @@ def get_food_by_barcode(barcode: str):
     if result.get("status") != 1:
         raise HTTPException(status_code=404, detail=f"No product found with barcode '{barcode}'.")
     return _format_product(result.get("product", {}))
-
-# ============================================================================
-# GLOBAL NUTRITION ANALYTICS  — date-range queries
-# ============================================================================
-
-@router.get("/analytics/summary")
-def get_global_nutrition_summary(
-    start_date: str = Query(description="Start date YYYY-MM-DD"),
-    end_date: str = Query(description="End date YYYY-MM-DD"),
-    backend: FitnessBackend = Depends(get_backend)
-):
-    """
-    Nutrition summary across a date range.
-    Returns total meals, total calories, avg per day and per meal.
-    """
-    username = backend.get_username_from_session()
-    return backend.get_nutrition_summary(username, start_date, end_date)
-
-
-@router.get("/analytics/calories-consumed")
-def get_total_calories_consumed(
-    start_date: str = Query(description="Start date YYYY-MM-DD"),
-    end_date: str = Query(description="End date YYYY-MM-DD"),
-    backend: FitnessBackend = Depends(get_backend)
-):
-    """Total calories consumed across all meals in a date range."""
-    username = backend.get_username_from_session()
-    total = backend.get_total_calories_consumed(username, start_date, end_date)
-    return {"total_calories_consumed": total, "start_date": start_date, "end_date": end_date}
