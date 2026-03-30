@@ -152,39 +152,44 @@ def delete_food(meal_id: int, food_id: int, backend: FitnessBackend = Depends(ge
 
 
 # ============================================================================
-# FOOD SEARCH (OpenFoodFacts)
+# FOOD SEARCH (USDA API)
 # ============================================================================
 
-import re as _re
-from OpenFoodFactsAPImethods import OpenFoodFactsClient as _OFFClient
+from USDAAPImethods import USDAFoodDataClient as _USDAClient
 
-def _off_client():
-    return _OFFClient()
+def _usda_client():
+    return _USDAClient()
 
 def _format_product(product: dict) -> dict:
-    nutriments = product.get("nutriments", {})
-    serving_str = product.get("serving_size")
-    serving_g = None
-    if serving_str:
-        m = _re.search(r"(\d+(?:\.\d+)?)\s*g", serving_str, _re.IGNORECASE)
-        if m:
-            serving_g = float(m.group(1))
-    per_100g = nutriments.get("energy-kcal_100g")
-    cal_serving = nutriments.get("energy-kcal_serving")
-    if not cal_serving and per_100g and serving_g:
-        cal_serving = round(per_100g * serving_g / 100)
+    """Maps USDA FoodData Central response to the FITT application schema."""
+    
+    # Helper to extract specific nutrient values from the USDA list structure
+    def get_nutrient(name_id: str):
+        nutrients = product.get("foodNutrients", [])
+        for n in nutrients:
+            # Check for name (used in search) or nutrientName (used in details)
+            n_name = n.get("nutrientName", n.get("name", "")).lower()
+            if name_id.lower() in n_name:
+                return n.get("value") or n.get("amount")
+        return None
+
+    # Construct serving size string
+    serving_val = product.get("servingSize")
+    serving_unit = product.get("servingSizeUnit", "")
+    serving_str = f"{serving_val} {serving_unit}".strip() if serving_val else None
+
     return {
-        "barcode": product.get("code") or product.get("_id"),
-        "name": product.get("product_name_en") or product.get("product_name") or "Unknown",
-        "brand": product.get("brands"),
+        "barcode": product.get("gtinUpc") or str(product.get("fdcId")),
+        "name": product.get("description", "Unknown").title(),
+        "brand": product.get("brandOwner") or product.get("brandName") or "N/A",
         "serving_size": serving_str,
-        "nutriscore": (product.get("nutrition_grades") or "").upper() or None,
-        "calories_per_100g": per_100g,
-        "calories_per_serving": cal_serving,
-        "protein_g": nutriments.get("proteins_100g"),
-        "carbs_g": nutriments.get("carbohydrates_100g"),
-        "fat_g": nutriments.get("fat_100g"),
-        "image_url": product.get("image_front_url"),
+        "nutriscore": None,  # USDA does not provide Nutri-Score grades
+        "calories_per_100g": get_nutrient("Energy"),
+        "calories_per_serving": None, 
+        "protein_g": get_nutrient("Protein"),
+        "carbs_g": get_nutrient("Carbohydrate"),
+        "fat_g": get_nutrient("Total lipid (fat)"),
+        "image_url": None, # USDA API does not consistently provide product images
     }
 
 
@@ -195,26 +200,35 @@ def search_food(
     page_size: int = Query(default=15, ge=1, le=50),
 ):
     try:
-        result = _off_client().search_products(
-            query=query, page=page, page_size=page_size,
-            fields=["code","_id","product_name","abbreviated_product_name",
-                    "brands","serving_size","nutrition_grades","nutriments","image_front_url"]
+        # result now comes from the fixed USDAFoodDataClient
+        result = _usda_client().search_products(
+            query=query, page_number=page, page_size=page_size
         )
     except Exception as e:
-        raise HTTPException(status_code=502, detail=f"OpenFoodFacts error: {e}")
-    products = [_format_product(p) for p in result.get("products", [])]
-    return {"count": result.get("count", len(products)), "page": page, "products": products}
+        # This catch is where your 502 is coming from. 
+        # Check your console logs to see the specific 'USDA API error' message.
+        raise HTTPException(status_code=502, detail=f"USDA API error: {e}")
+    
+    # Process products safely
+    raw_foods = result.get("foods", [])
+    products = [_format_product(p) for p in raw_foods]
+    
+    return {
+        "count": result.get("totalHits", len(products)), 
+        "page": page, 
+        "products": products
+    }
 
 
 @router.get("/food-search/barcode/{barcode}")
 def get_food_by_barcode(barcode: str):
     try:
-        result = _off_client().get_product_by_barcode(barcode, fields=[
-            "code","product_name","brands","serving_size",
-            "nutrition_grades","nutriments","image_front_url"
-        ])
+        # USDA barcode lookups are executed as a filtered search
+        result = _usda_client().get_product_by_barcode(barcode)
     except Exception as e:
-        raise HTTPException(status_code=502, detail=f"OpenFoodFacts error: {e}")
+        raise HTTPException(status_code=502, detail=f"USDA API error: {e}")
+        
     if result.get("status") != 1:
         raise HTTPException(status_code=404, detail=f"No product found with barcode '{barcode}'.")
+        
     return _format_product(result.get("product", {}))
