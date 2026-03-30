@@ -238,7 +238,7 @@ function FoodServingsEditor({ food, mealId, onUpdate, readOnly }) {
 }
 
 // ── Main Component ────────────────────────────────────────────────────────────
-export default function Nutrition() {
+export default function Nutrition({ goTo }) {
   const [meals, setMeals]               = useState([])
   const [loading, setLoading]           = useState(true)
   const [selectedDate, setSelectedDate] = useState(todayStr())

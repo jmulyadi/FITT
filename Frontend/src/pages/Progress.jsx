@@ -49,7 +49,7 @@ const volumeOptions = {
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
-export default function Progress() {
+export default function Progress({ goTo }) {
   const [history, setHistory]           = useState([])
   const [loading, setLoading]           = useState(true)
   const [expandedId, setExpandedId]     = useState(null)

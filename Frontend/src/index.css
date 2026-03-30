@@ -757,6 +757,39 @@ body {
   border: 1px solid var(--border);
   border-bottom-left-radius: 4px;
 }
+/* ── Markdown inside AI bubbles ── */
+.msg.ai .msg-bubble p { margin: 0 0 8px; }
+.msg.ai .msg-bubble p:last-child { margin-bottom: 0; }
+.msg.ai .msg-bubble ul,
+.msg.ai .msg-bubble ol { margin: 4px 0 8px 18px; }
+.msg.ai .msg-bubble li { margin-bottom: 2px; }
+.msg.ai .msg-bubble strong { color: var(--accent2); }
+.msg.ai .msg-bubble code {
+  background: var(--surface);
+  padding: 1px 5px;
+  border-radius: 4px;
+  font-size: 13px;
+}
+.msg.ai .msg-bubble pre {
+  background: var(--surface);
+  padding: 10px;
+  border-radius: 8px;
+  overflow-x: auto;
+  margin: 6px 0;
+}
+.msg.ai .msg-bubble pre code { background: none; padding: 0; }
+.msg.ai .msg-bubble h1,
+.msg.ai .msg-bubble h2,
+.msg.ai .msg-bubble h3 {
+  font-size: 14px;
+  font-weight: 700;
+  margin: 8px 0 4px;
+}
+.msg.ai .msg-bubble hr {
+  border: none;
+  border-top: 1px solid var(--border);
+  margin: 8px 0;
+}
 .msg-time {
   font-size: 10px;
   color: var(--muted);
@@ -788,6 +821,29 @@ body {
 .chat-input:focus {
   outline: none;
   border-color: var(--accent);
+}
+.chat-mic {
+  width: 42px;
+  height: 42px;
+  border-radius: 12px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: background 0.2s, border-color 0.2s;
+}
+.chat-mic:hover { border-color: var(--accent); }
+.chat-mic.recording {
+  background: var(--red);
+  border-color: var(--red);
+  animation: mic-pulse 1.2s ease-in-out infinite;
+}
+@keyframes mic-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.6; }
 }
 .chat-send {
   width: 42px;

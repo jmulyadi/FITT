@@ -2,6 +2,7 @@
 // Chat.jsx — AI Coach chat page (connected to Groq backend)
 // ─────────────────────────────────────────────────────────────────────────────
 import { useState, useRef, useEffect } from "react";
+import ReactMarkdown from "react-markdown";
 import { apiFetch } from "../api/clients";
 import { API_BASE } from "../config";
 import { suggestedChips } from "../data/mockData";
@@ -13,7 +14,7 @@ function now() {
   });
 }
 
-export default function Chat() {
+export default function Chat({ goTo }) {
   const [messages, setMessages] = useState([
     {
       role: "ai",
@@ -162,7 +163,13 @@ export default function Chat() {
         <div className="chat-messages">
           {messages.map((msg, i) => (
             <div key={i} className={`msg ${msg.role} fade-in`}>
-              <div className="msg-bubble">{msg.text}</div>
+              <div className="msg-bubble">
+                {msg.role === "ai" ? (
+                  <ReactMarkdown>{msg.text}</ReactMarkdown>
+                ) : (
+                  msg.text
+                )}
+              </div>
               <div className="msg-time">{msg.time}</div>
             </div>
           ))}
@@ -185,17 +192,24 @@ export default function Chat() {
         {/* Input bar */}
         <div className="chat-input-bar">
           <button
+            className={`chat-mic${recording ? " recording" : ""}`}
             onClick={handleRecord}
-            style={{
-              marginRight: 8,
-              background: recording ? "red" : "var(--card)",
-              border: "none",
-              borderRadius: 8,
-              padding: "8px",
-              cursor: "pointer",
-            }}
           >
-            🎤
+            <svg
+              width="18"
+              height="18"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="#fff"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <rect x="9" y="1" width="6" height="12" rx="3" />
+              <path d="M19 10v1a7 7 0 0 1-14 0v-1" />
+              <line x1="12" y1="19" x2="12" y2="23" />
+              <line x1="8" y1="23" x2="16" y2="23" />
+            </svg>
           </button>
           <textarea
             className="chat-input"

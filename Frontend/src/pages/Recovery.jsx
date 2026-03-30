@@ -46,7 +46,7 @@ const sleepOptions = {
   },
 }
 
-export default function Recovery() {
+export default function Recovery({ goTo }) {
   // Tracks which stress pill is selected — defaults to 'high' to match mock data
   const [stress, setStress] = useState('high')
 

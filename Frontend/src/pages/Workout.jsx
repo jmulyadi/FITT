@@ -25,7 +25,7 @@ function today() {
   return new Date().toISOString().split("T")[0];
 }
 
-export default function Workout() {
+export default function Workout({ goTo }) {
   const [exercises, setExercises] = useState(initialExercises);
   const [timerSec, setTimerSec] = useState(90);
   const [running, setRunning] = useState(false);
