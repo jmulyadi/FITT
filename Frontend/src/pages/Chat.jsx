@@ -1,86 +1,160 @@
 // ─────────────────────────────────────────────────────────────────────────────
 // Chat.jsx — AI Coach chat page (connected to Groq backend)
 // ─────────────────────────────────────────────────────────────────────────────
-import { useState, useRef, useEffect } from 'react'
-import { apiFetch } from '../api/clients'
-import { suggestedChips } from '../data/mockData'
+import { useState, useRef, useEffect } from "react";
+import { apiFetch } from "../api/clients";
+import { API_BASE } from "../config";
+import { suggestedChips } from "../data/mockData";
 
 function now() {
-  return new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+  return new Date().toLocaleTimeString([], {
+    hour: "2-digit",
+    minute: "2-digit",
+  });
 }
 
 export default function Chat() {
   const [messages, setMessages] = useState([
     {
-      role: 'ai',
+      role: "ai",
       text: "Hey! I'm your FITT AI Coach. Ask me anything about training, recovery, or nutrition.",
-      time: 'Just now',
+      time: "Just now",
     },
-  ])
-  const [input, setInput]   = useState('')
-  const [typing, setTyping] = useState(false)
-  const messagesEndRef = useRef(null)
+  ]);
+  const [input, setInput] = useState("");
+  const [typing, setTyping] = useState(false);
+  const messagesEndRef = useRef(null);
+  const mediaRecorderRef = useRef(null);
+  const audioChunksRef = useRef([]);
+  const [recording, setRecording] = useState(false);
 
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [messages, typing])
-
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages, typing]);
   const sendMessage = async (text = input.trim()) => {
-    if (!text || typing) return
+    if (!text || typing) return;
 
     // Add user message
-    const userMsg = { role: 'user', text, time: now() }
-    setMessages(prev => [...prev, userMsg])
-    setInput('')
-    setTyping(true)
+    const userMsg = { role: "user", text, time: now() };
+    setMessages((prev) => [...prev, userMsg]);
+    setInput("");
+    setTyping(true);
 
     // Build history for the API — only include user/assistant roles
     // (current messages + the new one we just added)
-    const history = [...messages, userMsg]
-      .map(m => ({
-        role: m.role === 'ai' ? 'assistant' : 'user',
-        content: m.text,
-      }))
+    const history = [...messages, userMsg].map((m) => ({
+      role: m.role === "ai" ? "assistant" : "user",
+      content: m.text,
+    }));
 
     try {
-      const data = await apiFetch('/groq/chat', {
-        method: 'POST',
+      const data = await apiFetch("/groq/chat", {
+        method: "POST",
         body: JSON.stringify({ messages: history }),
-      })
-      setMessages(prev => [...prev, { role: 'ai', text: data.response, time: now() }])
+      });
+      setMessages((prev) => [
+        ...prev,
+        { role: "ai", text: data.response, time: now() },
+      ]);
     } catch (e) {
-      setMessages(prev => [...prev, {
-        role: 'ai',
-        text: "Sorry, I couldn't reach the server. Please try again.",
-        time: now(),
-      }])
+      setMessages((prev) => [
+        ...prev,
+        {
+          role: "ai",
+          text: "Sorry, I couldn't reach the server. Please try again.",
+          time: now(),
+        },
+      ]);
     } finally {
-      setTyping(false)
+      setTyping(false);
     }
-  }
+  };
 
   const handleKey = (e) => {
-    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage() }
-  }
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      sendMessage();
+    }
+  };
+  const handleRecord = async () => {
+    if (!recording) {
+      setRecording(true);
 
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mediaRecorder = new MediaRecorder(stream);
+
+      mediaRecorderRef.current = mediaRecorder;
+      audioChunksRef.current = [];
+
+      mediaRecorder.ondataavailable = (e) => {
+        audioChunksRef.current.push(e.data);
+      };
+
+      mediaRecorder.onstop = async () => {
+        const audioBlob = new Blob(audioChunksRef.current, {
+          type: "audio/webm",
+        });
+
+        const formData = new FormData();
+        formData.append("file", audioBlob, "recording.webm");
+
+        try {
+          const res = await fetch(`${API_BASE}/groq/transcribe`, {
+            method: "POST",
+            body: formData,
+          });
+
+          const data = await res.json();
+
+          // 👇 fills input box
+          setInput(data.transcription);
+
+          // optional:
+          // sendMessage(data.transcription)
+        } catch (err) {
+          console.error(err);
+        }
+      };
+
+      mediaRecorder.start();
+    } else {
+      setRecording(false);
+      mediaRecorderRef.current.stop();
+      mediaRecorderRef.current = null;
+    }
+  };
   return (
     <div className="page fade-in">
-
       <div className="page-header">
         <div>
           <h1>AI Coach</h1>
-          <div style={{ fontSize: 12, color: typing ? 'var(--muted)' : 'var(--green)', marginTop: 2 }}>
-            {typing ? 'Thinking...' : 'Online'}
+          <div
+            style={{
+              fontSize: 12,
+              color: typing ? "var(--muted)" : "var(--green)",
+              marginTop: 2,
+            }}
+          >
+            {typing ? "Thinking..." : "Online"}
           </div>
         </div>
       </div>
 
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', paddingBottom: 80 }}>
-
+      <div
+        style={{
+          flex: 1,
+          display: "flex",
+          flexDirection: "column",
+          overflow: "hidden",
+          paddingBottom: 80,
+        }}
+      >
         {/* Suggested chips */}
         <div className="chips" style={{ paddingTop: 12 }}>
-          {suggestedChips.map(chip => (
-            <div key={chip} className="chip" onClick={() => sendMessage(chip)}>{chip}</div>
+          {suggestedChips.map((chip) => (
+            <div key={chip} className="chip" onClick={() => sendMessage(chip)}>
+              {chip}
+            </div>
           ))}
         </div>
 
@@ -95,9 +169,11 @@ export default function Chat() {
 
           {typing && (
             <div className="msg ai fade-in">
-              <div className="msg-bubble" style={{ padding: '12px 14px' }}>
+              <div className="msg-bubble" style={{ padding: "12px 14px" }}>
                 <div className="typing-indicator">
-                  <div className="dot" /><div className="dot" /><div className="dot" />
+                  <div className="dot" />
+                  <div className="dot" />
+                  <div className="dot" />
                 </div>
               </div>
             </div>
@@ -108,22 +184,48 @@ export default function Chat() {
 
         {/* Input bar */}
         <div className="chat-input-bar">
+          <button
+            onClick={handleRecord}
+            style={{
+              marginRight: 8,
+              background: recording ? "red" : "var(--card)",
+              border: "none",
+              borderRadius: 8,
+              padding: "8px",
+              cursor: "pointer",
+            }}
+          >
+            🎤
+          </button>
           <textarea
             className="chat-input"
             placeholder="Ask your AI coach..."
             rows={1}
             value={input}
-            onChange={e => setInput(e.target.value)}
+            onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleKey}
           />
-          <button className="chat-send" onClick={() => sendMessage()} disabled={typing}>
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-              <line x1="22" y1="2" x2="11" y2="13"/>
-              <polygon points="22 2 15 22 11 13 2 9 22 2"/>
+          <button
+            className="chat-send"
+            onClick={() => sendMessage()}
+            disabled={typing}
+          >
+            <svg
+              width="18"
+              height="18"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="#fff"
+              strokeWidth="2.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <line x1="22" y1="2" x2="11" y2="13" />
+              <polygon points="22 2 15 22 11 13 2 9 22 2" />
             </svg>
           </button>
         </div>
       </div>
     </div>
-  )
+  );
 }
