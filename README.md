@@ -134,6 +134,50 @@ GROQ_API_KEY=
 DATABASE_URL=
 ```
 
+## Production Deploy
+
+The cleanest setup for this repo is:
+
+- Deploy `Frontend/` to Vercel as a Vite project
+- Deploy `Backend/` to Vercel as a separate FastAPI project
+- Keep Supabase and Groq as managed external services
+
+### Frontend on Vercel
+
+Set the Vercel project root directory to `Frontend`.
+
+Add these environment variables in Vercel:
+
+```bash
+VITE_API_BASE=https://your-backend-project.vercel.app
+VITE_SUPABASE_URL=https://your-project-ref.supabase.co
+VITE_SUPABASE_ANON_KEY=your-anon-key
+```
+
+Build settings:
+
+- Build command: `npm run build`
+- Output directory: `dist`
+
+### Backend on Vercel
+
+Set the Vercel project root directory to `Backend`.
+
+Add these environment variables in Vercel:
+
+```bash
+SUPABASE_URL=https://your-project-ref.supabase.co
+SUPABASE_ANON_KEY=your-anon-key
+SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
+GROQ_API_KEY=your-groq-key
+EXERCISEDB_API_KEY=your-rapidapi-key
+EXERCISEDB_API_HOST=exercisedb.p.rapidapi.com
+EXERCISEDB_BASE_URL=https://exercisedb.p.rapidapi.com
+CORS_ORIGINS=https://your-frontend-project.vercel.app
+```
+
+If you use a custom frontend domain, include that in `CORS_ORIGINS` too. For multiple origins, use a comma-separated list.
+
 ---
 
 Developed by students at **The Ohio State University**.

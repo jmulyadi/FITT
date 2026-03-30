@@ -15,9 +15,10 @@ FITT is a fitness-tracking REST API built with FastAPI and backed by Supabase (P
 3. [Users](#3-users--users)
 4. [Workouts](#4-workouts--workouts)
 5. [Meals](#5-meals--meals)
-6. [Error Reference](#6-error-reference)
-7. [Database Schema](#7-database-schema)
-8. [Quick-Start Workflow](#8-quick-start-workflow)
+6. [Groq] (#6-groq--groq)
+7. [Error Reference](#7-error-reference)
+8. [Database Schema](#8-database-schema)
+9. [Quick-Start Workflow](#9-quick-start-workflow)
 
 ---
 
@@ -463,7 +464,62 @@ Use this after a search — copy the name and calories directly from a search re
 
 ---
 
-## 6. Error Reference
+## 6. Groq - `/groq`
+
+AI-powered fitness chat and voice transcription. Requires `GROQ_API_KEY` in `.env` 
+— get a free key at [console.groq.com](https://console.groq.com).
+
+### 6.1 Chat
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `POST` | `/groq/chat` | Send a message, get a personalized AI response |
+
+The chat endpoint automatically pulls your last 7 days of workouts and meals 
+to give personalized recommendations based on your actual data.
+
+#### POST /groq/chat
+```json
+{
+  "messages": [
+    { "role": "user", "content": "What should I work on today?" },
+    { "role": "assistant", "content": "Based on your recent sessions..." },
+    { "role": "user", "content": "What about nutrition?" }
+  ]
+}
+```
+
+Send the full conversation history each request to maintain context. 
+Each object needs a `role` (`"user"` or `"assistant"`) and `content`.
+
+**Returns:**
+```json
+{ "response": "Based on your recent workouts, I'd recommend..." }
+```
+
+### 6.2 Voice Transcription
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `POST` | `/groq/transcribe` | Convert audio to text |
+
+#### POST /groq/transcribe
+
+Send audio as `multipart/form-data` with a `file` field.  
+Supported formats: `mp3`, `mp4`, `wav`, `webm`, `m4a`
+
+**Typical frontend flow:**
+1. User holds mic button → browser records audio
+2. `POST /groq/transcribe` with the audio file → returns transcribed text
+3. Feed that text into `POST /groq/chat` as the next user message
+
+**Returns:**
+```json
+{ "transcription": "What muscle groups should I focus on today?" }
+```
+---
+
+## 7. Error Reference
 
 | Status | Meaning & Fix |
 |--------|---------------|
@@ -476,7 +532,7 @@ Use this after a search — copy the name and calories directly from a search re
 
 ---
 
-## 7. Database Schema
+## 8. Database Schema
 
 ```
 USER       (id PK uuid, username UK, age, gender, weight, height, experience_level, bmi)
@@ -501,7 +557,7 @@ All foreign keys use `ON DELETE CASCADE`, so deleting a workout removes its exer
 
 ---
 
-## 8. Quick-Start Workflow
+## 9. Quick-Start Workflow
 
 Here is the typical sequence to log a complete strength workout session from scratch:
 

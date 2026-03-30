@@ -5,6 +5,7 @@ from dependencies import get_backend, get_authenticated_client
 from schemas import SignUpRequest, UpdateProfileRequest
 from DBhelpermethods import FitnessBackend
 import os
+import traceback
 
 load_dotenv()
 
@@ -21,13 +22,29 @@ def create_user(body: SignUpRequest):
     Register a new user. Creates Supabase auth account and profile row.
     Returns user_id, username, and email.
     """
-    client = create_client(SUPABASE_URL, SUPABASE_ANON_KEY)
-    admin_client = create_client(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
+    try:
+        client = create_client(SUPABASE_URL, SUPABASE_ANON_KEY)
+        admin_client = create_client(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
+    except Exception as e:
+        print(f"Supabase client initialization failed: {e}")
+        traceback.print_exc()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Supabase client initialization failed: {e}"
+        )
 
-    auth_response = client.auth.sign_up({
-        "email": body.email,
-        "password": body.password
-    })
+    try:
+        auth_response = client.auth.sign_up({
+            "email": str(body.email),
+            "password": body.password
+        })
+    except Exception as e:
+        print(f"Supabase auth sign_up failed for email={body.email}: {e}")
+        traceback.print_exc()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Supabase auth sign_up failed: {e}"
+        )
 
     if not auth_response.user:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Sign up failed.")
@@ -50,10 +67,24 @@ def create_user(body: SignUpRequest):
         if not response.data:
             raise RuntimeError("Profile insert returned no data.")
     except Exception as e:
-        admin_client.auth.admin.delete_user(user_id)
+        print(f"Profile insert failed for user_id={user_id}: {e}")
+        traceback.print_exc()
+
+        rollback_error = None
+        try:
+            admin_client.auth.admin.delete_user(user_id)
+        except Exception as delete_error:
+            rollback_error = delete_error
+            print(f"Rollback delete failed for user_id={user_id}: {delete_error}")
+            traceback.print_exc()
+
+        detail = f"Sign up failed during profile creation: {e}"
+        if rollback_error:
+            detail += f" | rollback failed: {rollback_error}"
+
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Sign up failed during profile creation: {e}"
+            detail=detail
         )
 
     return {"user_id": user_id, "username": body.username, "email": body.email}
