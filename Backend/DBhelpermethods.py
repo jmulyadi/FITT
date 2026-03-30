@@ -1,3 +1,4 @@
+from datetime import datetime
 from supabase import Client
 from typing import Dict, Any, List
 
@@ -556,3 +557,64 @@ class FitnessBackend:
             "average_calories_per_day": total_calories / num_days if num_days > 0 else 0.0,
             "average_calories_per_meal": total_calories / len(meals),
         }
+
+    # ============================================================================
+    # CHAT METHODS
+    # ============================================================================
+
+    def create_chat(self, title: str = None) -> Dict[str, Any]:
+        """Create a new chat conversation for the current user."""
+        user_id = self.get_user_id_from_session()
+        if not title:
+            title = f"Chat {datetime.now().strftime('%b %d, %I:%M %p')}"
+        
+        data = {
+            "user_id": user_id,
+            "title": title,
+            "created_at": datetime.now().isoformat(),
+        }
+        response = self.supabase.table("chat").insert(data).execute()
+        if not response.data:
+            raise RuntimeError("Failed to create chat.")
+        return response.data[0]
+
+    def get_chats(self) -> List[Dict[str, Any]]:
+        """Get all chats for the current user, sorted by most recent first."""
+        user_id = self.get_user_id_from_session()
+        response = self.supabase.table("chat") \
+            .select("id, title, created_at") \
+            .eq("user_id", user_id) \
+            .order("created_at", desc=True) \
+            .execute()
+        return response.data or []
+
+    def get_chat_messages(self, chat_id: str) -> List[Dict[str, Any]]:
+        """Get all messages in a chat conversation."""
+        response = self.supabase.table("chat_message") \
+            .select("id, chat_id, role, content, created_at") \
+            .eq("chat_id", chat_id) \
+            .order("created_at", desc=False) \
+            .execute()
+        return response.data or []
+
+    def add_message_to_chat(self, chat_id: str, role: str, content: str) -> Dict[str, Any]:
+        """Add a message to a chat conversation."""
+        data = {
+            "chat_id": chat_id,
+            "role": role,
+            "content": content,
+            "created_at": datetime.now().isoformat(),
+        }
+        response = self.supabase.table("chat_message").insert(data).execute()
+        if not response.data:
+            raise RuntimeError("Failed to add message to chat.")
+        return response.data[0]
+
+    def delete_chat(self, chat_id: str) -> None:
+        """Delete a chat conversation and all its messages."""
+        # Delete messages first (foreign key constraint)
+        self.supabase.table("chat_message").delete().eq("chat_id", chat_id).execute()
+        # Delete chat
+        response = self.supabase.table("chat").delete().eq("id", chat_id).execute()
+        if not response.data:
+            raise ValueError(f"Delete failed. Chat ID {chat_id} not found.")
