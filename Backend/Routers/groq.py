@@ -166,11 +166,11 @@ async def groq_chat(
 
         # Fetch recent data
         recent_workouts = backend.get_workouts_in_range(
-            username, start_date=seven_days_ago.isoformat(), end_date=today.isoformat()
+            start_date=seven_days_ago.isoformat(), end_date=today.isoformat()
         )
 
         recent_meals = backend.get_meals_in_range(
-            username, start_date=seven_days_ago.isoformat(), end_date=today.isoformat()
+            start_date=seven_days_ago.isoformat(), end_date=today.isoformat()
         )
 
         # Build context string
