@@ -22,7 +22,7 @@ class ChatRequest(BaseModel):
 
 
 @router.post("/transcribe", tags=["Groq"])
-async def transcribe_audio(file: UploadFile = File(...)):
+async def transcribe_audio(user_id: str, file: UploadFile = File(...)):
     """
     Transcribe audio to text using Groq Whisper
     Frontend records audio, sends it here, and gets a text back,
@@ -149,7 +149,7 @@ def build_user_context(user_profile: dict, workouts: list, meals: list) -> str:
 
 
 @router.post("/chat", tags=["Groq"])
-async def groq_chat(
+async def groq_chat(user_id: str, 
     request: ChatRequest, backend: FitnessBackend = Depends(get_backend)
 ):
     if not GROQ_API_KEY:
@@ -213,7 +213,7 @@ Based on this user's profile and recent activity, provide tailored advice that c
 # ============================================================================
 
 @router.post("/chats", tags=["Groq"])
-async def create_new_chat(backend: FitnessBackend = Depends(get_backend)):
+async def create_new_chat(user_id: str, backend: FitnessBackend = Depends(get_backend)):
     """Create a new chat conversation for the current user."""
     try:
         chat = backend.create_chat()
@@ -223,7 +223,7 @@ async def create_new_chat(backend: FitnessBackend = Depends(get_backend)):
 
 
 @router.get("/chats", tags=["Groq"])
-async def get_user_chats(backend: FitnessBackend = Depends(get_backend)):
+async def get_user_chats(user_id: str, backend: FitnessBackend = Depends(get_backend)):
     """Get all chats for the current user."""
     try:
         chats = backend.get_chats()
@@ -233,7 +233,7 @@ async def get_user_chats(backend: FitnessBackend = Depends(get_backend)):
 
 
 @router.get("/chats/{chat_id}", tags=["Groq"])
-async def get_chat_history(chat_id: str, backend: FitnessBackend = Depends(get_backend)):
+async def get_chat_history(user_id: str, chat_id: str, backend: FitnessBackend = Depends(get_backend)):
     """Get all messages from a specific chat."""
     try:
         messages = backend.get_chat_messages(chat_id)
@@ -243,7 +243,7 @@ async def get_chat_history(chat_id: str, backend: FitnessBackend = Depends(get_b
 
 
 @router.post("/chats/{chat_id}/messages", tags=["Groq"])
-async def send_chat_message(
+async def send_chat_message(user_id: str, 
     chat_id: str,
     request: ChatRequest,
     backend: FitnessBackend = Depends(get_backend),
@@ -320,11 +320,10 @@ Based on this user's profile and recent activity, provide tailored advice that c
 
 
 @router.delete("/chats/{chat_id}", tags=["Groq"])
-async def delete_chat(chat_id: str, backend: FitnessBackend = Depends(get_backend)):
+async def delete_chat(user_id: str, chat_id: str, backend: FitnessBackend = Depends(get_backend)):
     """Delete a chat conversation."""
     try:
         backend.delete_chat(chat_id)
         return {"status": "deleted"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error deleting chat: {str(e)}")
-

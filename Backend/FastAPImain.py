@@ -1,10 +1,8 @@
-from fastapi import FastAPI, Request
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
 from contextlib import asynccontextmanager
 from dotenv import load_dotenv
 import os
-import traceback
 
 from Routers import users, workouts, meals, groq
 
@@ -21,25 +19,6 @@ GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 if not GROQ_API_KEY:
     raise RuntimeError("GROQ_API_KEY must be set in .env")
 
-
-def get_cors_config():
-    raw_origins = os.getenv("CORS_ORIGINS", "")
-    if not raw_origins.strip():
-        return {
-            "origins": [
-                "http://localhost:5173",
-                "http://127.0.0.1:5173",
-                "https://localhost:5173",
-            ],
-            "allow_credentials": True,
-        }
-
-    origins = [origin.strip() for origin in raw_origins.split(",") if origin.strip()]
-    if origins == ["*"]:
-        return {"origins": ["*"], "allow_credentials": False}
-
-    return {"origins": origins, "allow_credentials": True}
-
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     print("FITT API starting up...")
@@ -54,31 +33,18 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-cors = get_cors_config()
-
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=cors["origins"],
-    allow_credentials=cors["allow_credentials"],
+    allow_origins=["*"],
+    allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-app.include_router(users.router,    prefix="/users",    tags=["Users"])
-app.include_router(workouts.router, prefix="/workouts", tags=["Workouts"])
-app.include_router(meals.router,    prefix="/meals",    tags=["Meals"])
-app.include_router(groq.router,     prefix="/groq",     tags=["Groq"])
-
-
-@app.exception_handler(Exception)
-async def unhandled_exception_handler(request: Request, exc: Exception):
-    print(f"Unhandled error on {request.method} {request.url.path}: {exc}")
-    traceback.print_exc()
-    return JSONResponse(
-        status_code=500,
-        content={"detail": f"Unhandled server error: {exc}"},
-    )
-
+app.include_router(users.router,    prefix="/users",                    tags=["Users"])
+app.include_router(workouts.router, prefix="/users/{user_id}/workouts", tags=["Workouts"])
+app.include_router(meals.router,    prefix="/users/{user_id}/meals",    tags=["Meals"])
+app.include_router(groq.router,     prefix="/users/{user_id}/groq",     tags=["Groq"])
 
 @app.get("/", tags=["Health"])
 def root():
