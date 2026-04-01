@@ -1,10 +1,30 @@
-import { getToken } from "../auth/auth";
 import { API_BASE } from "../config";
+
+function getToken() {
+  return localStorage.getItem("access_token");
+}
+
+function getUserId() {
+  const token = localStorage.getItem("access_token");
+  if (!token) return null;
+  try {
+    const payload = JSON.parse(atob(token.split(".")[1].replace(/-/g, "+").replace(/_/g, "/")));
+    return payload.sub;
+  } catch {
+    return null;
+  }
+}
 
 export async function apiFetch(path, options = {}) {
   const token = getToken();
+  const userId = getUserId();
 
-  const res = await fetch(`${API_BASE}${path}`, {
+  // Inject user_id into paths that need it
+  const fullPath = path.startsWith("/workouts") || path.startsWith("/meals") || path.startsWith("/groq")
+    ? `/users/${userId}${path}`
+    : path;
+
+  const res = await fetch(`${API_BASE}${fullPath}`, {
     ...options,
     headers: {
       "Content-Type": "application/json",
@@ -17,7 +37,6 @@ export async function apiFetch(path, options = {}) {
     throw new Error(`API error ${res.status}`);
   }
 
-  // 204 No Content has no body — don't try to parse JSON
   if (res.status === 204 || res.headers.get("content-length") === "0") {
     return null;
   }

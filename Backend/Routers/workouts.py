@@ -11,7 +11,7 @@ router = APIRouter()
 # ============================================================================
 
 @router.post("/", status_code=status.HTTP_201_CREATED)
-def add_workout(body: WorkoutCreate, backend: FitnessBackend = Depends(get_backend)):
+def add_workout(user_id: str, body: WorkoutCreate, backend: FitnessBackend = Depends(get_backend)):
     try:
         workout_id = backend.add_workout(
             date=body.date,
@@ -27,7 +27,7 @@ def add_workout(body: WorkoutCreate, backend: FitnessBackend = Depends(get_backe
 
 
 @router.get("/")
-def get_workouts(
+def get_workouts(user_id: str, 
     start_date: Optional[str] = Query(default=None),
     end_date: Optional[str] = Query(default=None),
     backend: FitnessBackend = Depends(get_backend)
@@ -42,7 +42,7 @@ def get_workouts(
 
 
 @router.get("/exercise-search")
-def search_exercises(
+def search_exercises(user_id: str, 
     name: str = Query(description="Exercise name or partial name"),
     limit: int = Query(default=10, ge=1, le=50),
     backend: FitnessBackend = Depends(get_backend)
@@ -60,7 +60,7 @@ def search_exercises(
 
 
 @router.get("/analytics/summary")
-def get_global_workout_summary(
+def get_global_workout_summary(user_id: str, 
     start_date: str = Query(description="Start date YYYY-MM-DD"),
     end_date: str = Query(description="End date YYYY-MM-DD"),
     backend: FitnessBackend = Depends(get_backend)
@@ -69,7 +69,7 @@ def get_global_workout_summary(
 
 
 @router.get("/analytics/calories-burned")
-def get_total_calories_burned(
+def get_total_calories_burned(user_id: str, 
     start_date: str = Query(description="Start date YYYY-MM-DD"),
     end_date: str = Query(description="End date YYYY-MM-DD"),
     backend: FitnessBackend = Depends(get_backend)
@@ -79,7 +79,7 @@ def get_total_calories_burned(
 
 
 @router.get("/analytics/average-duration")
-def get_average_duration(
+def get_average_duration(user_id: str, 
     start_date: str = Query(description="Start date YYYY-MM-DD"),
     end_date: str = Query(description="End date YYYY-MM-DD"),
     backend: FitnessBackend = Depends(get_backend)
@@ -89,7 +89,7 @@ def get_average_duration(
 
 
 @router.get("/analytics/progress/{exercise_name}")
-def get_global_exercise_progress(
+def get_global_exercise_progress(user_id: str, 
     exercise_name: str,
     start_date: str = Query(description="Start date YYYY-MM-DD"),
     end_date: str = Query(description="End date YYYY-MM-DD"),
@@ -99,12 +99,12 @@ def get_global_exercise_progress(
 
 
 @router.get("/analytics/net-calories/{date_string}")
-def get_net_calories_by_date(date_string: str, backend: FitnessBackend = Depends(get_backend)):
+def get_net_calories_by_date(user_id: str, date_string: str, backend: FitnessBackend = Depends(get_backend)):
     return backend.get_net_calories(date_string)
 
 
 @router.get("/{workout_id}")
-def get_workout(workout_id: int, backend: FitnessBackend = Depends(get_backend)):
+def get_workout(user_id: str, workout_id: int, backend: FitnessBackend = Depends(get_backend)):
     try:
         return backend.get_workout_by_id(workout_id)
     except ValueError as e:
@@ -112,7 +112,7 @@ def get_workout(workout_id: int, backend: FitnessBackend = Depends(get_backend))
 
 
 @router.patch("/{workout_id}")
-def update_workout(workout_id: int, body: WorkoutUpdate, backend: FitnessBackend = Depends(get_backend)):
+def update_workout(user_id: str, workout_id: int, body: WorkoutUpdate, backend: FitnessBackend = Depends(get_backend)):
     updates = body.model_dump(exclude_none=True)
     if not updates:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="No fields provided.")
@@ -123,7 +123,7 @@ def update_workout(workout_id: int, body: WorkoutUpdate, backend: FitnessBackend
 
 
 @router.delete("/{workout_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_workout(workout_id: int, backend: FitnessBackend = Depends(get_backend)):
+def delete_workout(user_id: str, workout_id: int, backend: FitnessBackend = Depends(get_backend)):
     try:
         backend.delete_workout(workout_id)
     except ValueError as e:
@@ -135,7 +135,7 @@ def delete_workout(workout_id: int, backend: FitnessBackend = Depends(get_backen
 # ============================================================================
 
 @router.get("/{workout_id}/analytics/summary")
-def get_workout_summary(workout_id: int, backend: FitnessBackend = Depends(get_backend)):
+def get_workout_summary(user_id: str, workout_id: int, backend: FitnessBackend = Depends(get_backend)):
     try:
         workout = backend.get_workout_by_id(workout_id)
     except ValueError as e:
@@ -161,7 +161,7 @@ def get_workout_summary(workout_id: int, backend: FitnessBackend = Depends(get_b
 
 
 @router.get("/{workout_id}/analytics/net-calories")
-def get_net_calories(workout_id: int, backend: FitnessBackend = Depends(get_backend)):
+def get_net_calories(user_id: str, workout_id: int, backend: FitnessBackend = Depends(get_backend)):
     try:
         workout = backend.get_workout_by_id(workout_id)
     except ValueError as e:
@@ -170,7 +170,7 @@ def get_net_calories(workout_id: int, backend: FitnessBackend = Depends(get_back
 
 
 @router.get("/{workout_id}/analytics/progress/{exercise_name}")
-def get_exercise_progress(workout_id: int, exercise_name: str, backend: FitnessBackend = Depends(get_backend)):
+def get_exercise_progress(user_id: str, workout_id: int, exercise_name: str, backend: FitnessBackend = Depends(get_backend)):
     try:
         workout = backend.get_workout_by_id(workout_id)
     except ValueError as e:
@@ -183,7 +183,7 @@ def get_exercise_progress(workout_id: int, exercise_name: str, backend: FitnessB
 # ============================================================================
 
 @router.post("/{workout_id}/exercises", status_code=status.HTTP_201_CREATED)
-def add_exercise(workout_id: int, body: ExerciseCreate, backend: FitnessBackend = Depends(get_backend)):
+def add_exercise(user_id: str, workout_id: int, body: ExerciseCreate, backend: FitnessBackend = Depends(get_backend)):
     try:
         exercise_id = backend.add_exercise(workout_id, body.name, body.muscle_group)
         return {"exercise_id": exercise_id}
@@ -193,12 +193,12 @@ def add_exercise(workout_id: int, body: ExerciseCreate, backend: FitnessBackend 
 
 
 @router.get("/{workout_id}/exercises")
-def get_exercises(workout_id: int, backend: FitnessBackend = Depends(get_backend)):
+def get_exercises(user_id: str, workout_id: int, backend: FitnessBackend = Depends(get_backend)):
     return backend.get_exercises_by_workout(workout_id)
 
 
 @router.get("/{workout_id}/exercises/{exercise_id}")
-def get_exercise(workout_id: int, exercise_id: int, backend: FitnessBackend = Depends(get_backend)):
+def get_exercise(user_id: str, workout_id: int, exercise_id: int, backend: FitnessBackend = Depends(get_backend)):
     try:
         return backend.get_exercise_by_id(exercise_id)
     except ValueError as e:
@@ -206,7 +206,7 @@ def get_exercise(workout_id: int, exercise_id: int, backend: FitnessBackend = De
 
 
 @router.patch("/{workout_id}/exercises/{exercise_id}")
-def update_exercise(workout_id: int, exercise_id: int, body: ExerciseUpdate, backend: FitnessBackend = Depends(get_backend)):
+def update_exercise(user_id: str, workout_id: int, exercise_id: int, body: ExerciseUpdate, backend: FitnessBackend = Depends(get_backend)):
     updates = body.model_dump(exclude_none=True)
     if not updates:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="No fields provided.")
@@ -217,7 +217,7 @@ def update_exercise(workout_id: int, exercise_id: int, body: ExerciseUpdate, bac
 
 
 @router.delete("/{workout_id}/exercises/{exercise_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_exercise(workout_id: int, exercise_id: int, backend: FitnessBackend = Depends(get_backend)):
+def delete_exercise(user_id: str, workout_id: int, exercise_id: int, backend: FitnessBackend = Depends(get_backend)):
     try:
         backend.delete_exercise(exercise_id)
     except ValueError as e:
@@ -229,7 +229,7 @@ def delete_exercise(workout_id: int, exercise_id: int, backend: FitnessBackend =
 # ============================================================================
 
 @router.post("/{workout_id}/exercises/{exercise_id}/sets", status_code=status.HTTP_201_CREATED)
-def add_set(workout_id: int, exercise_id: int, body: SetCreate, backend: FitnessBackend = Depends(get_backend)):
+def add_set(user_id: str, workout_id: int, exercise_id: int, body: SetCreate, backend: FitnessBackend = Depends(get_backend)):
     try:
         return backend.add_set(exercise_id, body.set_num, body.reps, body.weight, body.intensity)
     except Exception as e:
@@ -237,12 +237,12 @@ def add_set(workout_id: int, exercise_id: int, body: SetCreate, backend: Fitness
 
 
 @router.get("/{workout_id}/exercises/{exercise_id}/sets")
-def get_sets(workout_id: int, exercise_id: int, backend: FitnessBackend = Depends(get_backend)):
+def get_sets(user_id: str, workout_id: int, exercise_id: int, backend: FitnessBackend = Depends(get_backend)):
     return backend.get_sets_by_exercise(exercise_id)
 
 
 @router.get("/{workout_id}/exercises/{exercise_id}/sets/{set_id}")
-def get_set(workout_id: int, exercise_id: int, set_id: int, backend: FitnessBackend = Depends(get_backend)):
+def get_set(user_id: str, workout_id: int, exercise_id: int, set_id: int, backend: FitnessBackend = Depends(get_backend)):
     try:
         return backend.get_set_by_id(set_id)
     except ValueError as e:
@@ -250,7 +250,7 @@ def get_set(workout_id: int, exercise_id: int, set_id: int, backend: FitnessBack
 
 
 @router.patch("/{workout_id}/exercises/{exercise_id}/sets/{set_id}")
-def update_set(workout_id: int, exercise_id: int, set_id: int, body: SetUpdate, backend: FitnessBackend = Depends(get_backend)):
+def update_set(user_id: str, workout_id: int, exercise_id: int, set_id: int, body: SetUpdate, backend: FitnessBackend = Depends(get_backend)):
     updates = body.model_dump(exclude_none=True)
     if not updates:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="No fields provided.")
@@ -261,7 +261,7 @@ def update_set(workout_id: int, exercise_id: int, set_id: int, body: SetUpdate, 
 
 
 @router.delete("/{workout_id}/exercises/{exercise_id}/sets/{set_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_set(workout_id: int, exercise_id: int, set_id: int, backend: FitnessBackend = Depends(get_backend)):
+def delete_set(user_id: str, workout_id: int, exercise_id: int, set_id: int, backend: FitnessBackend = Depends(get_backend)):
     try:
         backend.delete_set(set_id)
     except ValueError as e:

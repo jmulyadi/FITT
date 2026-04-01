@@ -11,18 +11,18 @@ router = APIRouter()
 # ============================================================================
 
 @router.post("/", status_code=status.HTTP_201_CREATED)
-def add_meal(body: MealCreate, backend: FitnessBackend = Depends(get_backend)):
+def add_meal(user_id: str, body: MealCreate, backend: FitnessBackend = Depends(get_backend)):
     meal_id = backend.add_meal(body.date, body.meal_num, body.calories_in)
     return {"meal_id": meal_id}
 
 
 @router.get("/date/{date_string}")
-def get_meals_by_date(date_string: str, backend: FitnessBackend = Depends(get_backend)):
+def get_meals_by_date(user_id: str, date_string: str, backend: FitnessBackend = Depends(get_backend)):
     return backend.get_daily_meals(date_string)
 
 
 @router.get("/")
-def get_meals(
+def get_meals(user_id: str, 
     start_date: Optional[str] = Query(default=None),
     end_date: Optional[str] = Query(default=None),
     backend: FitnessBackend = Depends(get_backend)
@@ -37,7 +37,7 @@ def get_meals(
 
 
 @router.get("/analytics/summary")
-def get_global_nutrition_summary(
+def get_global_nutrition_summary(user_id: str, 
     start_date: str = Query(description="Start date YYYY-MM-DD"),
     end_date: str = Query(description="End date YYYY-MM-DD"),
     backend: FitnessBackend = Depends(get_backend)
@@ -46,7 +46,7 @@ def get_global_nutrition_summary(
 
 
 @router.get("/analytics/calories-consumed")
-def get_total_calories_consumed(
+def get_total_calories_consumed(user_id: str, 
     start_date: str = Query(description="Start date YYYY-MM-DD"),
     end_date: str = Query(description="End date YYYY-MM-DD"),
     backend: FitnessBackend = Depends(get_backend)
@@ -56,7 +56,7 @@ def get_total_calories_consumed(
 
 
 @router.get("/{meal_id}")
-def get_meal(meal_id: int, backend: FitnessBackend = Depends(get_backend)):
+def get_meal(user_id: str, meal_id: int, backend: FitnessBackend = Depends(get_backend)):
     try:
         return backend.get_meal_by_id(meal_id)
     except ValueError as e:
@@ -64,7 +64,7 @@ def get_meal(meal_id: int, backend: FitnessBackend = Depends(get_backend)):
 
 
 @router.patch("/{meal_id}")
-def update_meal(meal_id: int, body: MealUpdate, backend: FitnessBackend = Depends(get_backend)):
+def update_meal(user_id: str, meal_id: int, body: MealUpdate, backend: FitnessBackend = Depends(get_backend)):
     updates = body.model_dump(exclude_none=True)
     if not updates:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="No fields provided.")
@@ -75,7 +75,7 @@ def update_meal(meal_id: int, body: MealUpdate, backend: FitnessBackend = Depend
 
 
 @router.delete("/{meal_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_meal(meal_id: int, backend: FitnessBackend = Depends(get_backend)):
+def delete_meal(user_id: str, meal_id: int, backend: FitnessBackend = Depends(get_backend)):
     try:
         backend.delete_meal(meal_id)
     except ValueError as e:
@@ -87,7 +87,7 @@ def delete_meal(meal_id: int, backend: FitnessBackend = Depends(get_backend)):
 # ============================================================================
 
 @router.get("/{meal_id}/analytics/summary")
-def get_meal_summary(meal_id: int, backend: FitnessBackend = Depends(get_backend)):
+def get_meal_summary(user_id: str, meal_id: int, backend: FitnessBackend = Depends(get_backend)):
     try:
         meal = backend.get_meal_by_id(meal_id)
     except ValueError as e:
@@ -112,7 +112,7 @@ def get_meal_summary(meal_id: int, backend: FitnessBackend = Depends(get_backend
 # ============================================================================
 
 @router.post("/{meal_id}/food", status_code=status.HTTP_201_CREATED)
-def add_food(meal_id: int, body: FoodCreate, backend: FitnessBackend = Depends(get_backend)):
+def add_food(user_id: str, meal_id: int, body: FoodCreate, backend: FitnessBackend = Depends(get_backend)):
     try:
         return backend.add_food_to_meal(meal_id, body.name, body.food_type, body.calories)
     except Exception as e:
@@ -120,12 +120,12 @@ def add_food(meal_id: int, body: FoodCreate, backend: FitnessBackend = Depends(g
 
 
 @router.get("/{meal_id}/food")
-def get_food_by_meal(meal_id: int, backend: FitnessBackend = Depends(get_backend)):
+def get_food_by_meal(user_id: str, meal_id: int, backend: FitnessBackend = Depends(get_backend)):
     return backend.get_foods_by_meal(meal_id)
 
 
 @router.get("/{meal_id}/food/{food_id}")
-def get_food(meal_id: int, food_id: int, backend: FitnessBackend = Depends(get_backend)):
+def get_food(user_id: str, meal_id: int, food_id: int, backend: FitnessBackend = Depends(get_backend)):
     try:
         return backend.get_food_by_id(food_id)
     except ValueError as e:
@@ -133,7 +133,7 @@ def get_food(meal_id: int, food_id: int, backend: FitnessBackend = Depends(get_b
 
 
 @router.patch("/{meal_id}/food/{food_id}")
-def update_food(meal_id: int, food_id: int, body: FoodUpdate, backend: FitnessBackend = Depends(get_backend)):
+def update_food(user_id: str, meal_id: int, food_id: int, body: FoodUpdate, backend: FitnessBackend = Depends(get_backend)):
     updates = body.model_dump(exclude_none=True)
     if not updates:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="No fields provided.")
@@ -144,7 +144,7 @@ def update_food(meal_id: int, food_id: int, body: FoodUpdate, backend: FitnessBa
 
 
 @router.delete("/{meal_id}/food/{food_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_food(meal_id: int, food_id: int, backend: FitnessBackend = Depends(get_backend)):
+def delete_food(user_id: str, meal_id: int, food_id: int, backend: FitnessBackend = Depends(get_backend)):
     try:
         backend.delete_food_item(food_id)
     except ValueError as e:
@@ -194,7 +194,7 @@ def _format_product(product: dict) -> dict:
 
 
 @router.get("/food-search/search")
-def search_food(
+def search_food(user_id: str, 
     query: str = Query(description="Food name, e.g. 'chicken breast'"),
     page: int = Query(default=1, ge=1),
     page_size: int = Query(default=15, ge=1, le=50),
@@ -205,8 +205,7 @@ def search_food(
             query=query, page_number=page, page_size=page_size
         )
     except Exception as e:
-        # This catch is where your 502 is coming from. 
-        # Check your console logs to see the specific 'USDA API error' message.
+        import traceback; traceback.print_exc()
         raise HTTPException(status_code=502, detail=f"USDA API error: {e}")
     
     # Process products safely
@@ -221,7 +220,7 @@ def search_food(
 
 
 @router.get("/food-search/barcode/{barcode}")
-def get_food_by_barcode(barcode: str):
+def get_food_by_barcode(user_id: str, barcode: str):
     try:
         # USDA barcode lookups are executed as a filtered search
         result = _usda_client().get_product_by_barcode(barcode)
