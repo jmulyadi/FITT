@@ -35,12 +35,10 @@ export default function Chat() {
   const audioChunksRef = useRef([]);
   const [recording, setRecording] = useState(false);
 
-  // Load chats on mount
   useEffect(() => {
     loadChats();
   }, []);
 
-  // Auto-scroll to latest message
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, typing]);
@@ -50,11 +48,9 @@ export default function Chat() {
       const data = await apiFetch("/groq/chats", { method: "GET" });
       setChats(data.chats || []);
       
-      // If no chats exist, create one
       if (!data.chats || data.chats.length === 0) {
         await createNewChat();
       } else {
-        // Load the most recent chat
         setCurrentChatId(data.chats[0].id);
         await loadChatMessages(data.chats[0].id);
       }
@@ -69,7 +65,6 @@ export default function Chat() {
       const dbMessages = data.messages || [];
       
       if (dbMessages.length === 0) {
-        // Initialize with greeting
         setMessages([
           {
             role: "ai",
@@ -78,16 +73,35 @@ export default function Chat() {
           },
         ]);
       } else {
-        // Convert DB messages to display format
         setMessages(
-          dbMessages.map((m) => ({
-            role: m.role === "assistant" ? "ai" : "user",
-            text: m.content,
-            time: new Date(m.created_at).toLocaleTimeString([], {
-              hour: "2-digit",
-              minute: "2-digit",
-            }),
-          }))
+          dbMessages.map((m) => {
+            let text = m.content;
+            let workoutData = null;
+            
+            // Extract JSON blocks so they don't show as text, turning them into data
+            const jsonMatch = text.match(/```json\n([\s\S]*?)\n```/);
+            if (jsonMatch) {
+              try {
+                const parsedData = JSON.parse(jsonMatch[1]);
+                if (parsedData.recommended_workout) {
+                  workoutData = parsedData.recommended_workout;
+                }
+                text = text.replace(/```json\n[\s\S]*?\n```/, '').trim();
+              } catch (e) {
+                console.error("Failed to parse historical AI workout JSON", e);
+              }
+            }
+
+            return {
+              role: m.role === "assistant" ? "ai" : "user",
+              text: text,
+              workoutData,
+              time: new Date(m.created_at).toLocaleTimeString([], {
+                hour: "2-digit",
+                minute: "2-digit",
+              }),
+            };
+          })
         );
       }
     } catch (e) {
@@ -100,11 +114,9 @@ export default function Chat() {
       const data = await apiFetch("/groq/chats", { method: "POST" });
       const newChat = data;
       
-      // Reload chats
       const chatsData = await apiFetch("/groq/chats", { method: "GET" });
       setChats(chatsData.chats || []);
       
-      // Switch to new chat
       setCurrentChatId(newChat.id);
       setMessages([
         {
@@ -130,11 +142,9 @@ export default function Chat() {
     try {
       await apiFetch(`/groq/chats/${chatIdToDelete}`, { method: "DELETE" });
       
-      // Remove from list
       const updatedChats = chats.filter((c) => c.id !== chatIdToDelete);
       setChats(updatedChats);
       
-      // If we deleted current chat, switch to first remaining or create new
       if (currentChatId === chatIdToDelete) {
         if (updatedChats.length > 0) {
           await switchChat(updatedChats[0].id);
@@ -150,13 +160,11 @@ export default function Chat() {
   const sendMessage = async (text = input.trim()) => {
     if (!text || typing || !currentChatId) return;
 
-    // Add user message to UI
     const userMsg = { role: "user", text, time: now() };
     setMessages((prev) => [...prev, userMsg]);
     setInput("");
     setTyping(true);
 
-    // Build history from current messages + new message
     const history = [...messages, userMsg].map((m) => ({
       role: m.role === "ai" ? "assistant" : "user",
       content: m.text,
@@ -167,9 +175,28 @@ export default function Chat() {
         method: "POST",
         body: JSON.stringify({ messages: history }),
       });
+      
+      const aiText = data.response;
+      let parsedWorkout = null;
+      let displayText = aiText;
+
+      const jsonMatch = aiText.match(/```json\n([\s\S]*?)\n```/);
+      if (jsonMatch) {
+        try {
+          const jsonStr = jsonMatch[1];
+          const parsedData = JSON.parse(jsonStr);
+          if (parsedData.recommended_workout) {
+            parsedWorkout = parsedData.recommended_workout;
+          }
+          displayText = aiText.replace(/```json\n[\s\S]*?\n```/, '').trim();
+        } catch (e) {
+          console.error("Failed to parse AI workout JSON", e);
+        }
+      }
+
       setMessages((prev) => [
         ...prev,
-        { role: "ai", text: data.response, time: now() },
+        { role: "ai", text: displayText, workoutData: parsedWorkout, time: now() },
       ]);
     } catch (e) {
       setMessages((prev) => [
@@ -221,12 +248,7 @@ export default function Chat() {
           });
 
           const data = await res.json();
-
-          // 👇 fills input box
           setInput(data.transcription);
-
-          // optional:
-          // sendMessage(data.transcription)
         } catch (err) {
           console.error(err);
         }
@@ -272,7 +294,6 @@ export default function Chat() {
         </button>
       </div>
 
-      {/* Chat list sidebar */}
       {showChatList && (
         <div
           style={{
@@ -375,7 +396,6 @@ export default function Chat() {
           paddingBottom: 80,
         }}
       >
-        {/* Suggested chips */}
         <div className="chips" style={{ paddingTop: 12 }}>
           {suggestedChips.map((chip) => (
             <div key={chip} className="chip" onClick={() => sendMessage(chip)}>
@@ -384,13 +404,26 @@ export default function Chat() {
           ))}
         </div>
 
-        {/* Message thread */}
         <div className="chat-messages">
           {messages.map((msg, i) => (
             <div key={i} className={`msg ${msg.role} fade-in`}>
               <div className="msg-bubble">
                 {msg.role === "ai" ? (
-                  <ReactMarkdown>{msg.text}</ReactMarkdown>
+                  <div>
+                    <ReactMarkdown>{msg.text}</ReactMarkdown>
+                    {msg.workoutData && (
+                      <button 
+                        className="btn btn-green"
+                        style={{ marginTop: '12px', fontSize: '13px', padding: '8px 12px', width: '100%' }}
+                        onClick={() => {
+                          localStorage.setItem("fitt_pending_workout", JSON.stringify(msg.workoutData));
+                          alert("Workout imported! Switch over to the Workout tab to see it.");
+                        }}
+                      >
+                        Import to Active Workout
+                      </button>
+                    )}
+                  </div>
                 ) : (
                   msg.text
                 )}
@@ -414,7 +447,6 @@ export default function Chat() {
           <div ref={messagesEndRef} />
         </div>
 
-        {/* Input bar */}
         <div className="chat-input-bar">
           <button
             onClick={handleRecord}
