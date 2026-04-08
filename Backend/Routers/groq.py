@@ -282,8 +282,10 @@ CRITICAL JSON RULES:
 1. You MUST append a JSON block at the very end of your response inside ```json ... ``` tags.
 2. The JSON 'sets' array MUST contain an entry for EVERY set you recommended in the text (e.g., if you say 4 sets, provide 4 objects).
 3. Do NOT provide a single object as a placeholder.
+4. If recommending a MEAL or FOODS, use "recommended_meal" instead of "recommended_workout".
+5. Only include ONE of "recommended_workout" or "recommended_meal" per response, never both.
 
-JSON STRUCTURE EXAMPLE:
+WORKOUT JSON STRUCTURE EXAMPLE:
 {{
   "recommended_workout": [
     {{
@@ -297,6 +299,15 @@ JSON STRUCTURE EXAMPLE:
         {{ "weight": "", "reps": "10", "rpe": "8" }}
       ]
     }}
+  ]
+}}
+
+MEAL JSON STRUCTURE EXAMPLE (use when recommending foods or meals):
+{{
+  "recommended_meal": [
+    {{ "name": "Chicken Breast", "food_type": "Protein", "calories": 165 }},
+    {{ "name": "Brown Rice", "food_type": "Carbs", "calories": 215 }},
+    {{ "name": "Broccoli", "food_type": "Vegetable", "calories": 55 }}
   ]
 }}
 

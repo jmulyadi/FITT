@@ -79,6 +79,7 @@ export default function Chat() {
             let workoutData = null;
             
             // Extract JSON blocks so they don't show as text, turning them into data
+            let mealData = null;
             const jsonMatch = text.match(/```json\n([\s\S]*?)\n```/);
             if (jsonMatch) {
               try {
@@ -86,9 +87,12 @@ export default function Chat() {
                 if (parsedData.recommended_workout) {
                   workoutData = parsedData.recommended_workout;
                 }
+                if (parsedData.recommended_meal) {
+                  mealData = parsedData.recommended_meal;
+                }
                 text = text.replace(/```json\n[\s\S]*?\n```/, '').trim();
               } catch (e) {
-                console.error("Failed to parse historical AI workout JSON", e);
+                console.error("Failed to parse historical AI JSON", e);
               }
             }
 
@@ -96,6 +100,7 @@ export default function Chat() {
               role: m.role === "assistant" ? "ai" : "user",
               text: text,
               workoutData,
+              mealData,
               time: new Date(m.created_at).toLocaleTimeString([], {
                 hour: "2-digit",
                 minute: "2-digit",
@@ -178,6 +183,7 @@ export default function Chat() {
       
       const aiText = data.response;
       let parsedWorkout = null;
+      let parsedMeal = null;
       let displayText = aiText;
 
       const jsonMatch = aiText.match(/```json\n([\s\S]*?)\n```/);
@@ -188,15 +194,18 @@ export default function Chat() {
           if (parsedData.recommended_workout) {
             parsedWorkout = parsedData.recommended_workout;
           }
+          if (parsedData.recommended_meal) {
+            parsedMeal = parsedData.recommended_meal;
+          }
           displayText = aiText.replace(/```json\n[\s\S]*?\n```/, '').trim();
         } catch (e) {
-          console.error("Failed to parse AI workout JSON", e);
+          console.error("Failed to parse AI JSON", e);
         }
       }
 
       setMessages((prev) => [
         ...prev,
-        { role: "ai", text: displayText, workoutData: parsedWorkout, time: now() },
+        { role: "ai", text: displayText, workoutData: parsedWorkout, mealData: parsedMeal, time: now() },
       ]);
     } catch (e) {
       setMessages((prev) => [
@@ -421,6 +430,18 @@ export default function Chat() {
                         }}
                       >
                         Import to Active Workout
+                      </button>
+                    )}
+                    {msg.mealData && (
+                      <button
+                        className="btn btn-green"
+                        style={{ marginTop: '8px', fontSize: '13px', padding: '8px 12px', width: '100%' }}
+                        onClick={() => {
+                          localStorage.setItem("fitt_pending_meal", JSON.stringify(msg.mealData));
+                          alert("Meal imported! Switch over to the Nutrition tab to see it.");
+                        }}
+                      >
+                        Import to Meal Log
                       </button>
                     )}
                   </div>

@@ -262,6 +262,34 @@ export default function Nutrition() {
 
   useEffect(() => { loadMeals(selectedDate) }, [selectedDate])
 
+  // Import AI-recommended meal from Chat tab
+  useEffect(() => {
+    const pending = localStorage.getItem('fitt_pending_meal')
+    if (!pending) return
+    localStorage.removeItem('fitt_pending_meal')
+
+    const foods = JSON.parse(pending)
+    if (!Array.isArray(foods) || foods.length === 0) return
+
+    const totalCals = foods.reduce((s, f) => s + (f.calories || 0), 0)
+    const usedNums = new Set(meals.map(m => m.meal_num))
+    const nextNum = [1, 2, 3, 4, 5].find(n => !usedNums.has(n)) || 1
+
+    createMeal(nextNum, totalCals).then(({ meal_id }) => {
+      // Add each food item to the new meal
+      Promise.all(
+        foods.map(f => addFoodToMeal(meal_id, f.name, f.food_type || 'Other', f.calories || 0))
+      ).then(savedFoods => {
+        setMeals(prev => [...prev, {
+          meal_id,
+          meal_num: nextNum,
+          calories_in: totalCals,
+          food: savedFoods,
+        }].sort((a, b) => a.meal_num - b.meal_num))
+      })
+    }).catch(err => console.error('Failed to import AI meal:', err))
+  }, [meals.length])
+
   const totalCal = useMemo(() => meals.reduce((sum, m) => sum + (m.calories_in || 0), 0), [meals])
   const remaining = CALORIE_GOAL - totalCal
 
