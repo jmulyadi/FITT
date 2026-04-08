@@ -9,7 +9,7 @@
 // "Add Exercise" searches ExerciseDB via GET /workouts/exercise-search?name=
 // ─────────────────────────────────────────────────────────────────────────────
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { createWorkout, addExercise, addSet as apiAddSet, searchExercises } from "../api/workouts";
 import WorkoutModal from "../components/WorkoutModal";
 import { initialExercises } from "../data/mockData";
@@ -20,13 +20,46 @@ function formatTime(sec) {
   return (sec < 0 ? "+" : "") + m + ":" + String(s).padStart(2, "0");
 }
 
-// Today's date as YYYY-MM-DD
 function today() {
   return new Date().toISOString().split("T")[0];
 }
 
 export default function Workout() {
-  const [exercises, setExercises] = useState(initialExercises);
+  const [exercises, setExercises] = useState(() => {
+    // 1. Check for AI Import first
+    const pending = localStorage.getItem("fitt_pending_workout");
+    if (pending) {
+      console.log("pending", pending);
+      try {
+        const parsed = JSON.parse(pending);
+        // Transform and return immediately
+        const imported = parsed.map(ex => ({
+          ...ex,
+          id: ex.id || Math.random().toString(36).substr(2, 9),
+          sets: ex.sets.map(s => ({
+            weight: String(s.weight || ""), 
+            reps: String(s.reps || ""), 
+            rpe: String(s.rpe || "")
+          }))
+        }));
+        
+        // Sync these to active storage now so the 'save' effect doesn't overwrite it
+        localStorage.setItem("fitt_active_workout_state", JSON.stringify(imported));
+        localStorage.removeItem("fitt_pending_workout");
+        return imported;
+      } catch (e) { console.error(e); }
+    }
+
+    // 2. Fallback to active state
+    const active = localStorage.getItem("fitt_active_workout_state");
+    return active ? JSON.parse(active) : initialExercises;
+  });
+
+  // Keep this for manual updates, but it won't trigger until 'exercises' changes
+  useEffect(() => {
+    localStorage.setItem("fitt_active_workout_state", JSON.stringify(exercises));
+  }, [exercises]);
+
   const [timerSec, setTimerSec] = useState(90);
   const [running, setRunning] = useState(false);
   const intervalRef = useRef(null);
@@ -35,10 +68,7 @@ export default function Workout() {
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState(null);
 
-  // Workout summary passed to modal after save
   const [workoutSummary, setWorkoutSummary] = useState(null);
-
-  // Track when the workout started so we can calculate duration
   const startTimeRef = useRef(Date.now());
 
   const startTimer = () => {
@@ -101,7 +131,6 @@ export default function Workout() {
     );
   };
 
-  // Exercise search picker state
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState([]);
   const [searchLoading, setSearchLoading] = useState(false);
@@ -131,6 +160,7 @@ export default function Workout() {
     setExercises((prev) => [
       ...prev,
       {
+        id: Math.random().toString(36).substr(2, 9),
         name: ex.name.charAt(0).toUpperCase() + ex.name.slice(1),
         muscles: [ex.target || ex.bodyPart || "Unknown"],
         muscleGroup: ex.target || ex.bodyPart || "Unknown",
@@ -147,7 +177,6 @@ export default function Workout() {
     setSearchResults([]);
   };
 
-  // ── Save workout to backend ───────────────────────────────────────────────
   const handleFinish = async (wasSaved) => {
     if (!wasSaved) {
       setShowModal(false);
@@ -158,13 +187,11 @@ export default function Workout() {
       setSaving(true);
       setSaveError(null);
 
-      // Calculate duration in minutes
       const durationMin = Math.max(
         1,
         Math.round((Date.now() - startTimeRef.current) / 60000)
       );
 
-      // Count total completed sets (both weight and reps filled in)
       const completedSets = exercises.flatMap((ex) =>
         ex.sets.filter((s) => s.weight && s.reps)
       );
@@ -173,10 +200,8 @@ export default function Workout() {
         0
       );
 
-      // Rough calorie estimate: 5 cal per set
       const caloriesBurned = Math.round(completedSets.length * 5);
 
-      // 1. Create the workout
       const { workout_id } = await createWorkout({
         date: today(),
         duration: durationMin,
@@ -184,10 +209,9 @@ export default function Workout() {
         type: "strength",
       });
 
-      // 2. Save each exercise and its completed sets
       for (const ex of exercises) {
         const completedExSets = ex.sets.filter((s) => s.weight && s.reps);
-        if (!completedExSets.length) continue; // skip exercises with no sets filled
+        if (!completedExSets.length) continue; 
 
         const { exercise_id } = await addExercise(
           workout_id,
@@ -195,7 +219,6 @@ export default function Workout() {
           ex.muscleGroup || ex.muscles?.[0] || "Unknown"
         );
 
-        // 3. Save each set
         for (let i = 0; i < completedExSets.length; i++) {
           const s = completedExSets[i];
           await apiAddSet(
@@ -204,7 +227,7 @@ export default function Workout() {
             i + 1,
             parseInt(s.reps),
             parseFloat(s.weight),
-            Math.round(parseFloat(s.rpe) || 7) // default intensity 7 if no RPE
+            Math.round(parseFloat(s.rpe) || 7)
           );
         }
       }
@@ -218,6 +241,7 @@ export default function Workout() {
 
       setShowModal(false);
       setSaved(true);
+      localStorage.removeItem("fitt_active_workout_state");
     } catch (err) {
       console.error(err);
       setSaveError("Failed to save workout. Please try again.");
@@ -241,7 +265,6 @@ export default function Workout() {
       <div className="page-content">
         <div style={{ height: 14 }} />
 
-        {/* ── Post-save banner ── */}
         {saved && workoutSummary && (
           <div className="finish-banner fade-in">
             <h3>Session Saved ✓</h3>
@@ -251,14 +274,12 @@ export default function Workout() {
           </div>
         )}
 
-        {/* ── Save error ── */}
         {saveError && (
           <div className="form-error" style={{ margin: "0 16px 12px" }}>
             {saveError}
           </div>
         )}
 
-        {/* ── Rest timer ── */}
         <div className="rest-timer">
           <div>
             <div className="timer-label">Rest Timer</div>
@@ -283,7 +304,6 @@ export default function Workout() {
           </div>
         </div>
 
-        {/* ── Exercise cards ── */}
         {exercises.map((ex, exIdx) => (
           <div key={exIdx} className="exercise-card fade-in">
             <div className="ex-header">
@@ -371,7 +391,6 @@ export default function Workout() {
           </div>
         ))}
 
-        {/* ── Footer actions ── */}
         <div style={{ padding: "0 16px", display: "flex", gap: 10, marginBottom: 14 }}>
           <button
             className="btn btn-ghost"
@@ -399,7 +418,6 @@ export default function Workout() {
         />
       )}
 
-      {/* ── Exercise Picker Sheet ── */}
       {showPicker && (
         <div
           style={{
@@ -418,7 +436,6 @@ export default function Workout() {
             flexDirection: "column",
             padding: "20px 16px 0",
           }}>
-            {/* Header */}
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
               <h3 style={{ margin: 0, fontSize: 17 }}>Add Exercise</h3>
               <button
@@ -430,7 +447,6 @@ export default function Workout() {
               </button>
             </div>
 
-            {/* Search input */}
             <input
               autoFocus
               type="text"
@@ -451,7 +467,6 @@ export default function Workout() {
               }}
             />
 
-            {/* Results list */}
             <div style={{ overflowY: "auto", flex: 1, paddingBottom: 24 }}>
               {searchLoading && (
                 <div style={{ textAlign: "center", color: "var(--muted)", padding: 24, fontSize: 14 }}>

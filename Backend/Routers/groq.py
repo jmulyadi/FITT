@@ -52,14 +52,6 @@ async def transcribe_audio(user_id: str, file: UploadFile = File(...)):
 def build_user_context(user_profile: dict, workouts: list, meals: list) -> str:
     """
     Builds a formatted context string from user profile and fitness data.
-
-    Args:
-        user_profile: User profile data from database
-        workouts: List of recent workouts
-        meals: List of recent meals
-
-    Returns:
-        Formatted context string for the LLM system prompt
     """
     context = f"""**User Stats:**
 - Age: {user_profile['age']}, Gender: {user_profile['gender']}
@@ -156,30 +148,39 @@ async def groq_chat(user_id: str,
         raise HTTPException(status_code=500, detail="Groq API key is not configured")
 
     try:
-        # Get user information for context
         username = backend.get_username_from_session()
         user_profile = backend.get_user(username)
 
-        # Calculate date range (last 7 days)
         today = datetime.now().date()
         seven_days_ago = today - timedelta(days=7)
 
-        # Fetch recent data
         recent_workouts = backend.get_workouts_in_range(
             start_date=seven_days_ago.isoformat(), end_date=today.isoformat()
         )
-
         recent_meals = backend.get_meals_in_range(
             start_date=seven_days_ago.isoformat(), end_date=today.isoformat()
         )
 
-        # Build context string
         user_context = build_user_context(user_profile, recent_workouts, recent_meals)
 
-        # Create enhanced system prompt with user context
         system_prompt = f"""You are FITT, a helpful fitness and nutrition assistant. Help users with workout plans, exercise advice, and meal guidance.
 
 RESPONSE FORMAT: Keep responses to 2 paragraphs maximum for direct advice. Only use longer responses when providing lists (workout plans, meal options, exercise sets, etc.). Be concise and mobile-friendly.
+
+CRITICAL: If you are recommending a specific workout routine, you MUST append a JSON block at the end of your response wrapped in ```json ... ``` tags. 
+The JSON must follow this exact format:
+{{
+  "recommended_workout": [
+    {{
+      "name": "Exercise Name",
+      "muscles": ["Muscle Group"],
+      "muscleGroup": "Muscle Group",
+      "sets": [
+        {{ "weight": "", "reps": "10", "rpe": "8" }}
+      ]
+    }}
+  ]
+}}
 
 Use the following user data to provide personalized, contextual, and concise recommendations:
 
@@ -189,7 +190,6 @@ Based on this user's profile and recent activity, provide tailored advice that c
 
         client = Groq(api_key=GROQ_API_KEY)
 
-        # Prepend the system prompt, then append the conversation history
         full_messages = [{"role": "system", "content": system_prompt}] + [
             {"role": m.role, "content": m.content} for m in request.messages
         ]
@@ -214,7 +214,6 @@ Based on this user's profile and recent activity, provide tailored advice that c
 
 @router.post("/chats", tags=["Groq"])
 async def create_new_chat(user_id: str, backend: FitnessBackend = Depends(get_backend)):
-    """Create a new chat conversation for the current user."""
     try:
         chat = backend.create_chat()
         return {"id": chat["id"], "title": chat["title"], "created_at": chat["created_at"]}
@@ -224,7 +223,6 @@ async def create_new_chat(user_id: str, backend: FitnessBackend = Depends(get_ba
 
 @router.get("/chats", tags=["Groq"])
 async def get_user_chats(user_id: str, backend: FitnessBackend = Depends(get_backend)):
-    """Get all chats for the current user."""
     try:
         chats = backend.get_chats()
         return {"chats": chats}
@@ -234,7 +232,6 @@ async def get_user_chats(user_id: str, backend: FitnessBackend = Depends(get_bac
 
 @router.get("/chats/{chat_id}", tags=["Groq"])
 async def get_chat_history(user_id: str, chat_id: str, backend: FitnessBackend = Depends(get_backend)):
-    """Get all messages from a specific chat."""
     try:
         messages = backend.get_chat_messages(chat_id)
         return {"messages": messages}
@@ -248,27 +245,22 @@ async def send_chat_message(user_id: str,
     request: ChatRequest,
     backend: FitnessBackend = Depends(get_backend),
 ):
-    """Send a message to a chat, get AI response, and save both to database."""
     if not GROQ_API_KEY:
         raise HTTPException(status_code=500, detail="Groq API key is not configured")
 
     try:
-        # Save user message to database
         backend.add_message_to_chat(
             chat_id, 
             "user", 
             request.messages[-1].content
         )
 
-        # Get user information for context
         username = backend.get_username_from_session()
         user_profile = backend.get_user(username)
 
-        # Calculate date range (last 7 days)
         today = datetime.now().date()
         seven_days_ago = today - timedelta(days=7)
 
-        # Fetch recent data
         recent_workouts = backend.get_workouts_in_range(
             start_date=seven_days_ago.isoformat(), end_date=today.isoformat()
         )
@@ -277,13 +269,47 @@ async def send_chat_message(user_id: str,
             start_date=seven_days_ago.isoformat(), end_date=today.isoformat()
         )
 
-        # Build context string
         user_context = build_user_context(user_profile, recent_workouts, recent_meals)
 
-        # Create enhanced system prompt
-        system_prompt = f"""You are FITT, a helpful fitness and nutrition assistant. Help users with workout plans, exercise advice, and meal guidance.
+        system_prompt = f"""
+
+You are FITT, a helpful fitness and nutrition assistant. Help users with workout plans, exercise advice, and meal guidance.
 
 RESPONSE FORMAT: Keep responses to 3-4 lines maximum for direct advice. Only use longer responses when providing lists (workout plans, meal options, exercise sets, etc.). Be concise and mobile-friendly.
+
+
+CRITICAL JSON RULES:
+1. You MUST append a JSON block at the very end of your response inside ```json ... ``` tags.
+2. The JSON 'sets' array MUST contain an entry for EVERY set you recommended in the text (e.g., if you say 4 sets, provide 4 objects).
+3. Do NOT provide a single object as a placeholder.
+4. If recommending a MEAL or FOODS, use "recommended_meal" instead of "recommended_workout".
+5. Only include ONE of "recommended_workout" or "recommended_meal" per response, never both.
+
+WORKOUT JSON STRUCTURE EXAMPLE:
+{{
+  "recommended_workout": [
+    {{
+      "name": "Squats",
+      "muscles": ["Quads", "Glutes"],
+      "muscleGroup": "Legs",
+      "sets": [
+        {{ "weight": "", "reps": "10", "rpe": "8" }},
+        {{ "weight": "", "reps": "10", "rpe": "8" }},
+        {{ "weight": "", "reps": "10", "rpe": "8" }},
+        {{ "weight": "", "reps": "10", "rpe": "8" }}
+      ]
+    }}
+  ]
+}}
+
+MEAL JSON STRUCTURE EXAMPLE (use when recommending foods or meals):
+{{
+  "recommended_meal": [
+    {{ "name": "Chicken Breast", "food_type": "Protein", "calories": 165 }},
+    {{ "name": "Brown Rice", "food_type": "Carbs", "calories": 215 }},
+    {{ "name": "Broccoli", "food_type": "Vegetable", "calories": 55 }}
+  ]
+}}
 
 Use the following user data to provide personalized, contextual, and concise recommendations:
 
@@ -293,7 +319,6 @@ Based on this user's profile and recent activity, provide tailored advice that c
 
         client = Groq(api_key=GROQ_API_KEY)
 
-        # Build conversation history from database messages
         full_messages = [{"role": "system", "content": system_prompt}] + [
             {"role": m.role, "content": m.content} for m in request.messages
         ]
@@ -305,12 +330,11 @@ Based on this user's profile and recent activity, provide tailored advice that c
 
         response_text = chat_completion.choices[0].message.content
         
-        # Save AI response to database
         backend.add_message_to_chat(chat_id, "assistant", response_text)
 
         return {
             "response": response_text,
-            "message_id": None  # Could be populated if we return the message ID
+            "message_id": None 
         }
 
     except Exception as e:
@@ -321,7 +345,6 @@ Based on this user's profile and recent activity, provide tailored advice that c
 
 @router.delete("/chats/{chat_id}", tags=["Groq"])
 async def delete_chat(user_id: str, chat_id: str, backend: FitnessBackend = Depends(get_backend)):
-    """Delete a chat conversation."""
     try:
         backend.delete_chat(chat_id)
         return {"status": "deleted"}
