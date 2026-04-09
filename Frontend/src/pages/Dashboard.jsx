@@ -252,6 +252,26 @@ export default function Dashboard({ goTo }) {
           </div>
         </div>
 
+        {/* ── Recovery Score Ring ── */}
+        <div className="card fade-in">
+          <div className="card-title">Recovery Status</div>
+          <div className="score-circle">
+            <div className="score-ring">
+              <svg width="120" height="120" viewBox="0 0 120 120">
+                <circle cx="60" cy="60" r="50" fill="none" stroke="#2a3347" strokeWidth="10"/>
+                <circle cx="60" cy="60" r="50" fill="none" stroke={recoveryColor} strokeWidth="10"
+                  strokeDasharray="314.16" strokeDashoffset={314.16 * (1 - recoveryScore / 100)}
+                  strokeLinecap="round"/>
+              </svg>
+              <div className="score-center">
+                <div className="score-num">{recoveryScore}</div>
+                <div className="score-lbl">/ 100</div>
+              </div>
+            </div>
+            <div className="score-status">{recoveryLabel}</div>
+          </div>
+        </div>
+
         {/* Stats row */}
         <div className="stat-row">
           <div className="stat-card">
@@ -301,12 +321,6 @@ export default function Dashboard({ goTo }) {
               <path d="M18 8h1a4 4 0 0 1 0 8h-1M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8z"/>
             </svg>
             <span>Log Meal</span>
-          </div>
-          <div className="qa-btn" onClick={() => goTo('recovery')}>
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M22 12h-4l-3 9L9 3l-3 9H2"/>
-            </svg>
-            <span>Recovery</span>
           </div>
           <div className="qa-btn" onClick={() => goTo('chat')}>
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
