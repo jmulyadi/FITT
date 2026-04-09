@@ -617,7 +617,7 @@ body {
   font-weight: 600;
 }
 
-.sleep-input-row {
+/* .sleep-input-row {
   display: flex;
   gap: 10px;
   margin-bottom: 12px;
@@ -659,7 +659,7 @@ body {
   border-color: var(--orange);
   background: rgba(245, 158, 11, 0.12);
   color: var(--orange);
-}
+} */
 
 /* ── Progress ── */
 .pr-item {
