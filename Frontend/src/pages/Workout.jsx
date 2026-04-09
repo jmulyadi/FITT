@@ -156,6 +156,15 @@ export default function Workout() {
     }
   };
 
+  const handleClearWorkout = () => {
+    if (window.confirm("Are you sure you want to clear all exercises? This cannot be undone.")) {
+      setExercises([]);
+      localStorage.removeItem("fitt_active_workout_state");
+      setSaved(false);
+      setWorkoutSummary(null);
+    }
+  };
+
   const handlePickExercise = (ex) => {
     setExercises((prev) => [
       ...prev,
@@ -407,6 +416,14 @@ export default function Workout() {
           >
             {saving ? "Saving..." : "Finish Workout"}
           </button>
+          <button
+            className="btn btn-ghost"
+            style={{ padding: "8px 12px", color: "var(--muted)" }}
+            onClick={handleClearWorkout}
+            title="Clear all exercises"
+           > 
+             Clear
+           </button>  
         </div>
       </div>
 
