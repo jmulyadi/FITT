@@ -262,33 +262,72 @@ export default function Nutrition() {
 
   useEffect(() => { loadMeals(selectedDate) }, [selectedDate])
 
-  // Import AI-recommended meal from Chat tab
+  // Import AI-recommended meal(s) from Chat tab
+  // Nutrition unmounts/remounts on tab switch, so loading goes true→false fresh each time
   useEffect(() => {
+    if (loading) return
+
     const pending = localStorage.getItem('fitt_pending_meal')
     if (!pending) return
     localStorage.removeItem('fitt_pending_meal')
 
-    const foods = JSON.parse(pending)
-    if (!Array.isArray(foods) || foods.length === 0) return
+    let data
+    try { data = JSON.parse(pending) } catch { return }
+    if (!data) return
 
-    const totalCals = foods.reduce((s, f) => s + (f.calories || 0), 0)
-    const usedNums = new Set(meals.map(m => m.meal_num))
-    const nextNum = [1, 2, 3, 4, 5].find(n => !usedNums.has(n)) || 1
+    // Normalise — Chat may store a raw array OR a wrapped {type, foods/meals} object
+    if (Array.isArray(data)) {
+      // If more than 4 foods, assume it's a full day and split into meals of ~3 foods each
+      if (data.length > 4) {
+        const mealNames = ['Breakfast', 'Lunch', 'Dinner', 'Snack']
+        const chunkSize = Math.ceil(data.length / Math.min(Math.ceil(data.length / 3), 4))
+        const chunks = []
+        for (let i = 0; i < data.length; i += chunkSize) {
+          chunks.push(data.slice(i, i + chunkSize))
+        }
+        data = {
+          type: 'plan',
+          meals: chunks.map((foods, i) => ({
+            meal_name: mealNames[i] || `Meal ${i + 1}`,
+            meal_num: i + 1,
+            foods,
+          }))
+        }
+      } else {
+        data = { type: 'single', foods: data }
+      }
+    }
 
-    createMeal(nextNum, totalCals).then(({ meal_id }) => {
-      // Add each food item to the new meal
-      Promise.all(
+    const currentMeals = meals  // capture current meals in this effect run
+    const usedNums = new Set(currentMeals.map(m => m.meal_num))
+    const getNextNum = () => [1, 2, 3, 4, 5, 6, 7, 8, 9, 10].find(n => !usedNums.has(n)) || 1
+
+    const importSingleMeal = async (foods, mealNum) => {
+      const totalCals = foods.reduce((s, f) => s + (f.calories || 0), 0)
+      const { meal_id } = await createMeal(mealNum, totalCals)
+      const savedFoods = await Promise.all(
         foods.map(f => addFoodToMeal(meal_id, f.name, f.food_type || 'Other', f.calories || 0))
-      ).then(savedFoods => {
-        setMeals(prev => [...prev, {
-          meal_id,
-          meal_num: nextNum,
-          calories_in: totalCals,
-          food: savedFoods,
-        }].sort((a, b) => a.meal_num - b.meal_num))
-      })
-    }).catch(err => console.error('Failed to import AI meal:', err))
-  }, [meals.length])
+      )
+      usedNums.add(mealNum)
+      return { meal_id, meal_num: mealNum, calories_in: totalCals, food: savedFoods }
+    }
+
+    if (data.type === 'plan' && Array.isArray(data.meals)) {
+      ;(async () => {
+        const imported = []
+        for (const meal of data.meals) {
+          const mealNum = meal.meal_num || getNextNum()
+          imported.push(await importSingleMeal(meal.foods || [], mealNum))
+        }
+        setMeals(prev => [...prev, ...imported].sort((a, b) => a.meal_num - b.meal_num))
+      })().catch(err => console.error('Failed to import meal plan:', err))
+
+    } else if (data.type === 'single' && Array.isArray(data.foods)) {
+      importSingleMeal(data.foods, getNextNum())
+        .then(newMeal => setMeals(prev => [...prev, newMeal].sort((a, b) => a.meal_num - b.meal_num)))
+        .catch(err => console.error('Failed to import meal:', err))
+    }
+  }, [loading])
 
   const totalCal = useMemo(() => meals.reduce((sum, m) => sum + (m.calories_in || 0), 0), [meals])
   const remaining = CALORIE_GOAL - totalCal
