@@ -261,15 +261,22 @@ export default function Chat() {
         formData.append("file", audioBlob, "recording.webm");
 
         try {
-          const res = await fetch(`${API_BASE}/groq/transcribe`, {
+          const token = localStorage.getItem("access_token");
+          const userId = token ? JSON.parse(atob(token.split(".")[1]
+            .replace(/-/g, "+").replace(/_/g, "/")))?.sub : null;
+        
+          const res = await fetch(`${API_BASE}/users/${userId}/groq/transcribe`, {
             method: "POST",
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
             body: formData,
           });
-
+        
           const data = await res.json();
           setInput(data.transcription);
         } catch (err) {
-          console.error(err);
+          console.error("Transcription error:", err);
         }
       };
 
