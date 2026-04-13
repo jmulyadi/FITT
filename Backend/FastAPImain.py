@@ -4,7 +4,7 @@ from contextlib import asynccontextmanager
 from dotenv import load_dotenv
 import os
 
-from Routers import users, workouts, meals, groq
+from Routers import users, workouts, meals, groq, templates
 
 load_dotenv()
 
@@ -44,7 +44,8 @@ app.add_middleware(
 app.include_router(users.router,    prefix="/users",                    tags=["Users"])
 app.include_router(workouts.router, prefix="/users/{user_id}/workouts", tags=["Workouts"])
 app.include_router(meals.router,    prefix="/users/{user_id}/meals",    tags=["Meals"])
-app.include_router(groq.router,     prefix="/users/{user_id}/groq",     tags=["Groq"])
+app.include_router(groq.router,      prefix="/users/{user_id}/groq",      tags=["Groq"])
+app.include_router(templates.router,  prefix="/users/{user_id}/templates",  tags=["Templates"])
 
 @app.get("/", tags=["Health"])
 def root():
