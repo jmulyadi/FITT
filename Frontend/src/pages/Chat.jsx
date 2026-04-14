@@ -82,14 +82,21 @@ export default function Chat() {
             let mealData = null;
             const jsonMatch = text.match(/```json\n([\s\S]*?)\n```/);
             if (jsonMatch) {
+              // Inside loadChatMessages
               try {
                 const parsedData = JSON.parse(jsonMatch[1]);
                 if (parsedData.recommended_workout) {
                   workoutData = parsedData.recommended_workout;
                 }
+                
+                // Add the check for meal plans here:
                 if (parsedData.recommended_meal) {
                   mealData = parsedData.recommended_meal;
+                } else if (parsedData.recommended_meal_plan) {
+                  // Wrap it in the object structure Nutrition.jsx expects
+                  mealData = { type: 'plan', meals: parsedData.recommended_meal_plan };
                 }
+                
                 text = text.replace(/```json\n[\s\S]*?\n```/, '').trim();
               } catch (e) {
                 console.error("Failed to parse historical AI JSON", e);
@@ -196,6 +203,9 @@ export default function Chat() {
           }
           if (parsedData.recommended_meal) {
             parsedMeal = parsedData.recommended_meal;
+          } else if (parsedData.recommended_meal_plan) {
+            // Wrap it in the object structure Nutrition.jsx expects
+            parsedMeal = { type: 'plan', meals: parsedData.recommended_meal_plan };
           }
           displayText = aiText.replace(/```json\n[\s\S]*?\n```/, '').trim();
         } catch (e) {
