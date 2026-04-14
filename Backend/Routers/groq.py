@@ -139,6 +139,15 @@ def build_user_context(user_profile: dict, workouts: list, meals: list) -> str:
 
     return context
 
+def is_suspicious_input(text: str) -> bool:
+    """Check for prompt injection attempts"""
+    suspicious_patterns = [
+        "ignore", "forget", "system prompt", "jailbreak", "bypass", "override",
+        "execute", "pretend to be", "you are now", "new instructions", "change your behavior"
+    ]
+    lower_text = text.lower()
+    return any(pattern in lower_text for pattern in suspicious_patterns)
+    
 
 @router.post("/chat", tags=["Groq"])
 async def groq_chat(user_id: str, 
