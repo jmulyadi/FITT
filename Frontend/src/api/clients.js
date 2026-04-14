@@ -20,7 +20,7 @@ export async function apiFetch(path, options = {}) {
   const userId = getUserId();
 
   // Inject user_id into paths that need it
-  const fullPath = path.startsWith("/workouts") || path.startsWith("/meals") || path.startsWith("/groq")
+  const fullPath = path.startsWith("/workouts") || path.startsWith("/meals") || path.startsWith("/groq") || path.startsWith("/templates")
     ? `/users/${userId}${path}`
     : path;
 

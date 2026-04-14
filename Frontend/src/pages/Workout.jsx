@@ -12,7 +12,7 @@
 import { useState, useRef, useEffect } from "react";
 import { createWorkout, addExercise, addSet as apiAddSet, searchExercises } from "../api/workouts";
 import WorkoutModal from "../components/WorkoutModal";
-import { initialExercises } from "../data/mockData";
+import { getTemplates, createTemplate, deleteTemplate } from "../api/templates";
 
 function formatTime(sec) {
   const m = Math.floor(Math.abs(sec) / 60);
@@ -52,7 +52,7 @@ export default function Workout() {
 
     // 2. Fallback to active state
     const active = localStorage.getItem("fitt_active_workout_state");
-    return active ? JSON.parse(active) : initialExercises;
+    return active ? JSON.parse(active) : [];
   });
 
   // Keep this for manual updates, but it won't trigger until 'exercises' changes
@@ -67,6 +67,48 @@ export default function Workout() {
   const [saved, setSaved] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState(null);
+
+  // Templates
+  const [templates, setTemplates] = useState([]);
+  const [showTemplates, setShowTemplates] = useState(false);
+  const [savingTemplate, setSavingTemplate] = useState(false);
+  const [templateName, setTemplateName] = useState("");
+  const [showSaveTemplate, setShowSaveTemplate] = useState(false);
+
+  useEffect(() => {
+    getTemplates().then(data => setTemplates(data.templates || [])).catch(() => {});
+  }, []);
+
+  const handleLoadTemplate = (template) => {
+    const imported = template.exercises.map(ex => ({
+      ...ex,
+      id: Math.random().toString(36).substr(2, 9),
+      sets: (ex.sets || []).map(s => ({ weight: String(s.weight || ""), reps: String(s.reps || ""), rpe: String(s.rpe || "") }))
+    }));
+    setExercises(imported);
+    setShowTemplates(false);
+  };
+
+  const handleSaveTemplate = async () => {
+    if (!templateName.trim() || exercises.length === 0) return;
+    setSavingTemplate(true);
+    try {
+      const result = await createTemplate(templateName.trim(), exercises);
+      setTemplates(prev => [result, ...prev]);
+      setTemplateName("");
+      setShowSaveTemplate(false);
+    } catch (e) {
+      console.error("Failed to save template", e);
+    } finally {
+      setSavingTemplate(false);
+    }
+  };
+
+  const handleDeleteTemplate = async (e, templateId) => {
+    e.stopPropagation();
+    await deleteTemplate(templateId);
+    setTemplates(prev => prev.filter(t => t.id !== templateId));
+  };
 
   const [workoutSummary, setWorkoutSummary] = useState(null);
   const startTimeRef = useRef(Date.now());
@@ -259,8 +301,80 @@ export default function Workout() {
           </div>
           <h1>Today's Session</h1>
         </div>
-        <div className="badge">In Progress</div>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          <button
+            onClick={() => setShowTemplates(true)}
+            style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 8, padding: '6px 12px', fontSize: 12, cursor: 'pointer', color: 'var(--text)', fontWeight: 600 }}
+          >
+            Templates
+          </button>
+          <div className="badge">In Progress</div>
+        </div>
       </div>
+
+      {/* Templates Panel */}
+      {showTemplates && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', zIndex: 300 }}
+          onClick={() => setShowTemplates(false)}>
+          <div onClick={e => e.stopPropagation()} style={{ position: 'absolute', bottom: 0, left: 0, right: 0, background: 'var(--surface)', borderRadius: '16px 16px 0 0', padding: 20, maxHeight: '70vh', overflowY: 'auto' }}>
+            <div style={{ fontWeight: 700, fontSize: 16, marginBottom: 14 }}>Workout Templates</div>
+
+            {/* Save current as template */}
+            {exercises.length > 0 && (
+              <div style={{ marginBottom: 16 }}>
+                {!showSaveTemplate ? (
+                  <button onClick={() => setShowSaveTemplate(true)}
+                    style={{ width: '100%', padding: '10px', background: 'var(--accent)', color: '#fff', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 600, fontSize: 13 }}>
+                    + Save Current Workout as Template
+                  </button>
+                ) : (
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <input
+                      value={templateName}
+                      onChange={e => setTemplateName(e.target.value)}
+                      placeholder="Template name..."
+                      style={{ flex: 1, padding: '8px 12px', borderRadius: 8, border: '1px solid var(--border)', background: 'var(--card)', color: 'var(--text)', fontSize: 13 }}
+                      onKeyDown={e => e.key === 'Enter' && handleSaveTemplate()}
+                      autoFocus
+                    />
+                    <button onClick={handleSaveTemplate} disabled={savingTemplate}
+                      style={{ padding: '8px 14px', background: '#22c55e', color: '#fff', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 600, fontSize: 13 }}>
+                      {savingTemplate ? '...' : 'Save'}
+                    </button>
+                    <button onClick={() => setShowSaveTemplate(false)}
+                      style={{ padding: '8px 14px', background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 8, cursor: 'pointer', fontSize: 13 }}>
+                      ✕
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Template list */}
+            {templates.length === 0 ? (
+              <div style={{ color: 'var(--muted)', fontSize: 13, textAlign: 'center', padding: '20px 0' }}>
+                No templates yet. Build a workout and save it as a template.
+              </div>
+            ) : (
+              templates.map(t => (
+                <div key={t.id} onClick={() => handleLoadTemplate(t)}
+                  style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 14px', marginBottom: 8, background: 'var(--card)', borderRadius: 10, cursor: 'pointer', border: '1px solid var(--border)' }}>
+                  <div>
+                    <div style={{ fontWeight: 600, fontSize: 14 }}>{t.name}</div>
+                    <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 2 }}>
+                      {(t.exercises || []).length} exercise{t.exercises?.length !== 1 ? 's' : ''}
+                    </div>
+                  </div>
+                  <button onClick={e => handleDeleteTemplate(e, t.id)}
+                    style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', fontSize: 18, padding: '0 4px' }}>
+                    ×
+                  </button>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+      )}
 
       <div className="page-content">
         <div style={{ height: 14 }} />

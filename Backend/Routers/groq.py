@@ -282,8 +282,9 @@ CRITICAL JSON RULES:
 1. You MUST append a JSON block at the very end of your response inside ```json ... ``` tags.
 2. The JSON 'sets' array MUST contain an entry for EVERY set you recommended in the text (e.g., if you say 4 sets, provide 4 objects).
 3. Do NOT provide a single object as a placeholder.
-4. If recommending a MEAL or FOODS, use "recommended_meal" instead of "recommended_workout".
-5. Only include ONE of "recommended_workout" or "recommended_meal" per response, never both.
+4. If recommending a SINGLE meal or foods for ONE meal, use "recommended_meal".
+5. If recommending foods for a FULL DAY, multiple meals, or a meal plan, you MUST use "recommended_meal_plan" — NEVER use a flat array for a full day plan.
+6. Only include ONE key per response: either "recommended_workout", "recommended_meal", or "recommended_meal_plan".
 
 WORKOUT JSON STRUCTURE EXAMPLE:
 {{
@@ -302,7 +303,7 @@ WORKOUT JSON STRUCTURE EXAMPLE:
   ]
 }}
 
-MEAL JSON STRUCTURE EXAMPLE (use when recommending foods or meals):
+SINGLE MEAL JSON EXAMPLE (one meal only):
 {{
   "recommended_meal": [
     {{ "name": "Chicken Breast", "food_type": "Protein", "calories": 165 }},
@@ -310,6 +311,38 @@ MEAL JSON STRUCTURE EXAMPLE (use when recommending foods or meals):
     {{ "name": "Broccoli", "food_type": "Vegetable", "calories": 55 }}
   ]
 }}
+
+FULL DAY MEAL PLAN JSON EXAMPLE — use this when the user asks for a day of meals, meal plan, or multiple meals:
+{{
+  "recommended_meal_plan": [
+    {{
+      "meal_name": "Breakfast",
+      "meal_num": 1,
+      "foods": [
+        {{ "name": "Oatmeal", "food_type": "Carbs", "calories": 150 }},
+        {{ "name": "Banana", "food_type": "Fruit", "calories": 90 }}
+      ]
+    }},
+    {{
+      "meal_name": "Lunch",
+      "meal_num": 2,
+      "foods": [
+        {{ "name": "Grilled Chicken", "food_type": "Protein", "calories": 300 }},
+        {{ "name": "Brown Rice", "food_type": "Carbs", "calories": 215 }}
+      ]
+    }},
+    {{
+      "meal_name": "Dinner",
+      "meal_num": 3,
+      "foods": [
+        {{ "name": "Salmon", "food_type": "Protein", "calories": 350 }},
+        {{ "name": "Broccoli", "food_type": "Vegetable", "calories": 55 }}
+      ]
+    }}
+  ]
+}}
+
+IMPORTANT: Never use a flat array for a full day plan. Always group foods into separate meal objects under "recommended_meal_plan".
 
 Use the following user data to provide personalized, contextual, and concise recommendations:
 
