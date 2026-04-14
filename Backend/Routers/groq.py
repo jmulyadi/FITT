@@ -267,6 +267,13 @@ async def send_chat_message(user_id: str,
 ):
     if not GROQ_API_KEY:
         raise HTTPException(status_code=500, detail="Groq API key is not configured")
+    
+    user_message = request.messages[-1].content
+    if is_suspicious_input(user_message):
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid input detected. Stick to fitness questions!"
+        )
 
     try:
         backend.add_message_to_chat(
