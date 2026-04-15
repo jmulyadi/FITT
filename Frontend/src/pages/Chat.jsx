@@ -471,16 +471,40 @@ export default function Chat() {
         <div className="chat-input-bar">
           <button
             onClick={handleRecord}
+            title={recording ? "Stop recording" : "Record voice message"}
+            aria-label={recording ? "Stop recording" : "Record voice message"}
             style={{
               marginRight: 8,
-              background: recording ? "red" : "var(--card)",
-              border: "none",
-              borderRadius: 8,
-              padding: "8px",
+              background: recording ? "var(--red)" : "var(--card)",
+              border: `1px solid ${recording ? "var(--red)" : "var(--border)"}`,
+              borderRadius: "50%",
+              width: 40,
+              height: 40,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
               cursor: "pointer",
+              transition: "background 0.15s, border-color 0.15s, transform 0.1s",
+              boxShadow: recording ? "0 0 0 4px rgba(239, 68, 68, 0.18)" : "none",
+              animation: recording ? "mic-pulse 1.4s ease-in-out infinite" : "none",
+              flexShrink: 0,
             }}
           >
-            🎤
+            <svg
+              width="18"
+              height="18"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke={recording ? "#fff" : "var(--text)"}
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <rect x="9" y="2" width="6" height="12" rx="3" />
+              <path d="M5 11a7 7 0 0 0 14 0" />
+              <line x1="12" y1="18" x2="12" y2="22" />
+              <line x1="8" y1="22" x2="16" y2="22" />
+            </svg>
           </button>
           <textarea
             className="chat-input"
