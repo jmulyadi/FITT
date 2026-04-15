@@ -17,7 +17,6 @@ import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
 import Workout from "./pages/Workout";
 import Nutrition from "./pages/Nutrition";
-import Recovery from "./pages/Recovery";
 import Progress from "./pages/Progress";
 import Chat from "./pages/Chat";
 import BottomNav from "./components/BottomNav";
@@ -36,7 +35,6 @@ export default function App() {
       {page === "dashboard" && <Dashboard goTo={setPage} />}
       {page === "workout" && <Workout goTo={setPage} />}
       {page === "nutrition" && <Nutrition goTo={setPage} />}
-      {page === "recovery" && <Recovery goTo={setPage} />}
       {page === "progress" && <Progress goTo={setPage} />}
       {page === "chat" && <Chat goTo={setPage} />}
 

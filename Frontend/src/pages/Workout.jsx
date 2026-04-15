@@ -15,9 +15,19 @@ import WorkoutModal from "../components/WorkoutModal";
 import { getTemplates, createTemplate, deleteTemplate } from "../api/templates";
 
 function formatTime(sec) {
-  const m = Math.floor(Math.abs(sec) / 60);
-  const s = Math.abs(sec) % 60;
-  return (sec < 0 ? "+" : "") + m + ":" + String(s).padStart(2, "0");
+  const safe = Math.max(0, sec);
+  const m = Math.floor(safe / 60);
+  const s = safe % 60;
+  return m + ":" + String(s).padStart(2, "0");
+}
+
+function parseTime(raw) {
+  const v = String(raw).trim();
+  if (v.includes(":")) {
+    const [m, s] = v.split(":").map((x) => parseInt(x, 10) || 0);
+    return Math.max(1, m * 60 + s);
+  }
+  return Math.max(1, parseInt(v, 10) || 0);
 }
 
 function today() {
@@ -60,6 +70,7 @@ export default function Workout() {
     localStorage.setItem("fitt_active_workout_state", JSON.stringify(exercises));
   }, [exercises]);
 
+  const [restDuration, setRestDuration] = useState(90);
   const [timerSec, setTimerSec] = useState(90);
   const [running, setRunning] = useState(false);
   const intervalRef = useRef(null);
@@ -117,22 +128,24 @@ export default function Workout() {
     if (running) {
       clearInterval(intervalRef.current);
       setRunning(false);
-      setTimerSec(90);
+      setTimerSec(restDuration);
       return;
     }
-    setTimerSec(90);
+    setTimerSec(restDuration);
     setRunning(true);
     intervalRef.current = setInterval(() => {
       setTimerSec((prev) => {
-        if (prev <= -60) {
+        if (prev <= 1) {
           clearInterval(intervalRef.current);
           setRunning(false);
-          return prev;
+          return 0;
         }
         return prev - 1;
       });
     }, 1000);
   };
+
+  const [restDraft, setRestDraft] = useState(null);
 
   const deleteExercise = (exIdx) => {
     setExercises((prev) => prev.filter((_, i) => i !== exIdx));
@@ -195,6 +208,15 @@ export default function Workout() {
       console.error(err);
     } finally {
       setSearchLoading(false);
+    }
+  };
+
+  const handleClearWorkout = () => {
+    if (window.confirm("Are you sure you want to clear all exercises? This cannot be undone.")) {
+      setExercises([]);
+      localStorage.removeItem("fitt_active_workout_state");
+      setSaved(false);
+      setWorkoutSummary(null);
     }
   };
 
@@ -397,17 +419,48 @@ export default function Workout() {
         <div className="rest-timer">
           <div>
             <div className="timer-label">Rest Timer</div>
-            <div style={{ fontSize: 11, color: "var(--muted)" }}>
-              90s recommended
-            </div>
           </div>
           <div style={{ textAlign: "right" }}>
-            <div
-              className="timer-val"
-              style={{ color: timerSec <= 0 ? "var(--green)" : "var(--text)" }}
-            >
-              {formatTime(timerSec)}
-            </div>
+            {running ? (
+              <div
+                className="timer-val"
+                style={{ color: timerSec <= 0 ? "var(--green)" : "var(--text)" }}
+              >
+                {formatTime(timerSec)}
+              </div>
+            ) : (
+              <input
+                type="text"
+                inputMode="numeric"
+                value={restDraft ?? formatTime(restDuration)}
+                onChange={(e) => setRestDraft(e.target.value)}
+                onFocus={(e) => {
+                  setRestDraft(formatTime(restDuration));
+                  e.target.select();
+                }}
+                onBlur={(e) => {
+                  const v = parseTime(e.target.value);
+                  setRestDuration(v);
+                  setTimerSec(v);
+                  setRestDraft(null);
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") e.currentTarget.blur();
+                  if (e.key === "Escape") { setRestDraft(null); e.currentTarget.blur(); }
+                }}
+                className="timer-val"
+                style={{
+                  background: "transparent",
+                  border: "none",
+                  outline: "none",
+                  color: "var(--text)",
+                  textAlign: "right",
+                  width: 90,
+                  padding: 0,
+                  cursor: "text",
+                }}
+              />
+            )}
             <button
               className="btn btn-ghost"
               style={{ fontSize: 11, padding: "4px 10px", marginTop: 4 }}
@@ -520,6 +573,14 @@ export default function Workout() {
             disabled={saving}
           >
             {saving ? "Saving..." : "Finish Workout"}
+          </button>
+          <button
+            className="btn btn-danger"
+            onClick={handleClearWorkout}
+            title="Clear all exercises"
+          >
+            <span aria-hidden="true" style={{ fontSize: 14 }}>🗑</span>
+            Clear
           </button>
         </div>
       </div>
