@@ -1,0 +1,1 @@
+from FastAPImain import app
