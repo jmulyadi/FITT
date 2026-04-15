@@ -39,7 +39,7 @@ def create_template(user_id: str, body: TemplateCreate, backend: FitnessBackend 
         response = backend.supabase.table("workout_template").insert({
             "user_id": uid,
             "name": body.name,
-            "exercises": json.dumps([e.model_dump() for e in body.exercises]),
+            "exercises": [e.model_dump() for e in body.exercises], # Send as a list
         }).execute()
         if not response.data:
             raise RuntimeError("Failed to create template.")
@@ -59,10 +59,6 @@ def get_templates(user_id: str, backend: FitnessBackend = Depends(get_backend)):
             .order("created_at", desc=True) \
             .execute()
         templates = response.data or []
-        # Parse exercises JSON string back to list
-        for t in templates:
-            if isinstance(t.get("exercises"), str):
-                t["exercises"] = json.loads(t["exercises"])
         return {"templates": templates}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -80,8 +76,6 @@ def get_template(user_id: str, template_id: str, backend: FitnessBackend = Depen
         if not response.data:
             raise ValueError("Template not found.")
         t = response.data
-        if isinstance(t.get("exercises"), str):
-            t["exercises"] = json.loads(t["exercises"])
         return t
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
@@ -107,8 +101,6 @@ def update_template(user_id: str, template_id: str, body: TemplateUpdate, backen
         if not response.data:
             raise ValueError("Template not found.")
         t = response.data[0]
-        if isinstance(t.get("exercises"), str):
-            t["exercises"] = json.loads(t["exercises"])
         return t
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
